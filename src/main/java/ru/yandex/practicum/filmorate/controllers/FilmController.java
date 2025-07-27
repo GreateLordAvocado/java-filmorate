@@ -1,17 +1,20 @@
 package ru.yandex.practicum.filmorate.controllers;
 
-import jakarta.validation.Valid;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exceptions.*;
+import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
+import ru.yandex.practicum.filmorate.exceptions.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.service.IdGenerator;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-
-import static ru.yandex.practicum.filmorate.utils.ControllersUtils.getNextId;
-import static ru.yandex.practicum.filmorate.utils.FilmValidate.validateFilm;
+import java.util.Set;
 
 @Slf4j
 @RestController
@@ -19,6 +22,15 @@ import static ru.yandex.practicum.filmorate.utils.FilmValidate.validateFilm;
 public class FilmController {
 
     private final Map<Long, Film> films = new HashMap<>();
+    private final IdGenerator idGenerator = new IdGenerator();
+
+    // Создаем валидатор локально, чтобы он был всегда доступен и не был null
+    private final Validator validator;
+
+    public FilmController() {
+        ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
+        this.validator = factory.getValidator();
+    }
 
     @GetMapping
     public Collection<Film> findAll() {
@@ -27,16 +39,10 @@ public class FilmController {
     }
 
     @PostMapping
-    public Film create(@Valid @RequestBody Film newFilm) {
-        log.info("Получен запрос на добавление фильма {}", newFilm.getName());
-
-        if (newFilm == null) {
-            log.error("Попытка добавить null");
-            throw new NullPointerException("Фильм не может быть null");
-        }
-
+    public Film create(@RequestBody Film newFilm) {
         validateFilm(newFilm);
-        newFilm.setId(getNextId(films.keySet()));
+
+        newFilm.setId(idGenerator.getNextId(films.keySet()));
         films.put(newFilm.getId(), newFilm);
 
         log.info("Фильм {} успешно добавлен", newFilm.getName());
@@ -44,8 +50,8 @@ public class FilmController {
     }
 
     @PutMapping
-    public Film update(@Valid @RequestBody Film film) {
-        log.info("Получен запрос на обновление фильма c id {}", film.getId());
+    public Film update(@RequestBody Film film) {
+        validateFilm(film);
 
         if (film.getId() == null) {
             log.error("Попытка обновить фильм с id = null");
@@ -57,9 +63,23 @@ public class FilmController {
             throw new NotFoundException("Фильм с id:" + film.getId() + " не найден");
         }
 
-        validateFilm(film);
         films.put(film.getId(), film);
         log.info("Фильм {} c id:{} успешно обновлен", film.getName(), film.getId());
         return film;
+    }
+
+    private void validateFilm(Film film) {
+        if (film == null) {
+            throw new ValidationException("Фильм не может быть null");
+        }
+
+        Set<ConstraintViolation<Film>> violations = validator.validate(film);
+        if (!violations.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (ConstraintViolation<Film> violation : violations) {
+                sb.append(violation.getMessage()).append("; ");
+            }
+            throw new ValidationException(sb.toString());
+        }
     }
 }

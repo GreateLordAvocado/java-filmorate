@@ -8,7 +8,7 @@ import ru.yandex.practicum.filmorate.model.User;
 
 import java.util.*;
 
-import static ru.yandex.practicum.filmorate.utils.ControllersUtils.getNextId;
+import ru.yandex.practicum.filmorate.service.IdGenerator;
 import static ru.yandex.practicum.filmorate.utils.UserValidate.validateUser;
 
 @Slf4j
@@ -18,6 +18,8 @@ public class UserController {
 
     private final Map<Long, User> users = new HashMap<>();
     private final Set<String> userEmails = new HashSet<>();
+    private final IdGenerator idGenerator = new IdGenerator();
+
 
     @GetMapping
     public Collection<User> findAll() {
@@ -31,14 +33,14 @@ public class UserController {
 
         if (newUser == null) {
             log.error("Попытка добавить null");
-            throw new NullPointerException("Пользователь не может быть null");
+            throw new ValidationException("Пользователь не может быть null"); // ← также заменим NPE
         }
 
         checkEmailUniqueness(newUser.getEmail());
 
         validateUser(newUser);
         userEmails.add(newUser.getEmail().toLowerCase());
-        newUser.setId(getNextId(users.keySet()));
+        newUser.setId(idGenerator.getNextId(users.keySet())); // ← заменили getNextId()
 
         if (newUser.getName() == null || newUser.getName().isBlank()) {
             newUser.setName(newUser.getLogin());
