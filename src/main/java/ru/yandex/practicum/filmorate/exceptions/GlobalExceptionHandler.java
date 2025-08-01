@@ -2,9 +2,9 @@ package ru.yandex.practicum.filmorate.exceptions;
 
 import jakarta.validation.ValidationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,22 +39,6 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public Map<String, String> handleDuplicate(DuplicateException e) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", e.getMessage());
-        return error;
-    }
-
-    @ExceptionHandler
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public Map<String, String> handleOthers(Throwable e) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", "Произошла непредвиденная ошибка: " + e.getMessage());
-        return error;
-    }
-
-    @ExceptionHandler
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> handleConstraintViolation(jakarta.validation.ConstraintViolationException e) {
         Map<String, String> error = new HashMap<>();
@@ -67,6 +51,22 @@ public class GlobalExceptionHandler {
     public Map<String, String> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
         Map<String, String> error = new HashMap<>();
         error.put("error", "Тело запроса не может быть пустым или некорректным");
+        return error;
+    }
+
+    @ExceptionHandler
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public Map<String, String> handleDuplicate(DuplicateException e) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", e.getMessage());
+        return error;
+    }
+
+    @ExceptionHandler
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public Map<String, String> handleOthers(Throwable e) {
+        Map<String, String> error = new HashMap<>();
+        error.put("error", "Произошла непредвиденная ошибка: " + e.getMessage());
         return error;
     }
 }
