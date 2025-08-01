@@ -14,18 +14,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public Map<String, String> handleNotFound(NotFoundException e) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", e.getMessage());
-        return error;
+    public ErrorResponse handleNotFound(NotFoundException e) {
+        return new ErrorResponse(e.getMessage());
     }
 
     @ExceptionHandler(ValidationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, String> handleValidationException(ValidationException e) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", e.getMessage());
-        return error;
+    public ErrorResponse handleValidationException(ValidationException e) {
+        return new ErrorResponse(e.getMessage());
     }
 
     @ExceptionHandler
@@ -40,26 +36,20 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, String> handleConstraintViolation(jakarta.validation.ConstraintViolationException e) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", "Ошибка валидации: " + e.getMessage());
-        return error;
+    public ErrorResponse handleConstraintViolation(jakarta.validation.ConstraintViolationException e) {
+        return new ErrorResponse("Ошибка валидации: " + e.getMessage());
     }
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, String> handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", "Тело запроса не может быть пустым или некорректным");
-        return error;
+    public ErrorResponse handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        return new ErrorResponse("Тело запроса не может быть пустым или некорректным");
     }
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.CONFLICT)
-    public Map<String, String> handleDuplicate(DuplicateException e) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", e.getMessage());
-        return error;
+    public ErrorResponse handleDuplicate(DuplicateException e) {
+        return new ErrorResponse(e.getMessage());
     }
 
     @ExceptionHandler
