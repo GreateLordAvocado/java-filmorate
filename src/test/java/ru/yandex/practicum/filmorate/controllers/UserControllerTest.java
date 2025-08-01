@@ -1,219 +1,156 @@
 package ru.yandex.practicum.filmorate.controllers;
 
-import org.junit.jupiter.api.BeforeEach;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import ru.yandex.practicum.filmorate.exceptions.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.web.servlet.MockMvc;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.time.LocalDate;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@SpringBootTest
+@AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD) // аннотация для для сброса перед тестами
 class UserControllerTest {
 
-    private UserController userController;
+    @Autowired
+    private MockMvc mockMvc;
 
-    @BeforeEach
-    public void beforeEach() {
-        userController = new UserController();
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private String toJson(Object obj) throws Exception {
+        return objectMapper.writeValueAsString(obj);
     }
 
-    // Тест успешного создания пользователя с валидными данными
     @Test
-    public void create_allRequiredFieldsValid_userAddedWithGeneratedId() {
-        User user = new User();
-        user.setEmail("user@mail.ru");
-        user.setLogin("user_login");
-        user.setBirthday(LocalDate.of(1995, 2, 13));
-
-        User createdUser = userController.create(user);
-
-        assertNotNull(createdUser.getId(), "Пользователю не был присвоен id");
-        assertEquals(1, userController.findAll().size(),
-                "Неверное количество пользователей после создания");
+    public void create_allRequiredFieldsValid_userAddedWithGeneratedId() throws Exception {
+        User user = new User(null, "user@mail.ru", "user_login", null, LocalDate.of(1995, 2, 13));
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists());
     }
 
-    // Тест создания пользователя с пустым именем
     @Test
-    public void create_emptyName_nameEqualsLogin() {
-        User user = new User();
-        user.setEmail("user@mail.ru");
-        user.setLogin("user_login");
-        user.setName("");
-        user.setBirthday(LocalDate.of(1995, 2, 13));
-
-        User createdUser = userController.create(user);
-
-        assertEquals("user_login", createdUser.getName(),
-                "При пустом имени должно подставляться значение login");
+    public void create_emptyName_nameEqualsLogin() throws Exception {
+        User user = new User(null, "user@mail.ru", "user_login", "", LocalDate.of(1995, 2, 13));
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("user_login"));
     }
 
-    // Тест создания пользователя с null именем (должно подставляться значение login)
     @Test
-    public void create_nullName_nameEqualsLogin() {
-        User user = new User();
-        user.setEmail("user@mail.ru");
-        user.setLogin("user_login");
-        user.setName(null);
-        user.setBirthday(LocalDate.of(1995, 2, 13));
-
-        User createdUser = userController.create(user);
-
-        assertEquals("user_login", createdUser.getName(),
-                "При null имени должно подставляться значение login");
+    public void create_invalidEmailFormat_throwsValidationException() throws Exception {
+        User user = new User(null, "invalid-email", "login", "name", LocalDate.of(1995, 2, 13));
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(user)))
+                .andExpect(status().isBadRequest());
     }
 
-    // Тест валидации email - не может быть пустым
     @Test
-    public void create_emptyEmail_throwsValidationException() {
-        User user = new User();
-        user.setEmail("");
-        user.setLogin("login");
-        user.setBirthday(LocalDate.of(1995, 2, 13));
-
-        assertThrows(ValidationException.class, () -> userController.create(user),
-                "Ожидалось ValidationException при пустом email");
+    public void create_nullEmail_throwsValidationException() throws Exception {
+        User user = new User(null, null, "login", "name", LocalDate.of(1995, 2, 13));
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(user)))
+                .andExpect(status().isBadRequest());
     }
 
-    // Тест валидации email - должен быть корректным форматом
     @Test
-    public void create_invalidEmailFormat_throwsValidationException() {
-        User user = new User();
-        user.setEmail("invalid-email");
-        user.setLogin("login");
-        user.setBirthday(LocalDate.of(1995, 2, 13));
+    public void create_duplicateEmail_throwsDuplicateException() throws Exception {
+        User user = new User(null, "duplicate@mail.ru", "login1", "Name1", LocalDate.of(1995, 1, 1));
+        mockMvc.perform(post("/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(toJson(user))).andExpect(status().isOk());
 
-        assertThrows(ValidationException.class, () -> userController.create(user),
-                "Ожидалось ValidationException при некорректном email");
+        User duplicate = new User(null, "duplicate@mail.ru", "login2", "Name2", LocalDate.of(1995, 1, 1));
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(duplicate)))
+                .andExpect(status().isConflict());
     }
 
-    // Тест уникальности email - нельзя создать пользователя с существующим email
     @Test
-    public void create_duplicateEmail_throwsDuplicateException() {
-        User user1 = new User();
-        user1.setEmail("user@mail.ru");
-        user1.setLogin("login1");
-        user1.setBirthday(LocalDate.of(1996, 2, 14));
-        userController.create(user1);
-
-        User user2 = new User();
-        user2.setEmail("user@mail.ru");
-        user2.setLogin("login2");
-        user2.setBirthday(LocalDate.of(1995, 2, 13));
-
-        assertThrows(DuplicateException.class, () -> userController.create(user2),
-                "Ожидалось DuplicateException при дублировании email");
+    public void create_emptyLogin_throwsValidationException() throws Exception {
+        User user = new User(null, "user@mail.ru", "", "name", LocalDate.of(1995, 2, 13));
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(user)))
+                .andExpect(status().isBadRequest());
     }
 
-    // Тест добавления пользователя с email, равным null
     @Test
-    public void create_nullEmail_throwsValidationException() {
-        User user = new User();
-        user.setEmail(null);
-        user.setLogin("login");
-        user.setBirthday(LocalDate.of(1995, 2, 13));
-
-        assertThrows(NullPointerException.class, () -> userController.create(user),
-                "Ожидалось NullPointerException, если email = null");
+    public void create_loginWithSpaces_throwsValidationException() throws Exception {
+        User user = new User(null, "user@mail.ru", "login with space", "name", LocalDate.of(1995, 2, 13));
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(user)))
+                .andExpect(status().isBadRequest());
     }
 
-    // Тест валидации логина - не может быть пустым
     @Test
-    public void create_emptyLogin_throwsValidationException() {
-        User user = new User();
-        user.setEmail("user@mail.ru");
-        user.setLogin("");
-        user.setBirthday(LocalDate.of(1995, 2, 13));
-
-        assertThrows(ValidationException.class, () -> userController.create(user),
-                "Ожидалось ValidationException при пустом логине");
+    public void create_birthdayInFuture_throwsValidationException() throws Exception {
+        User user = new User(null, "user@mail.ru", "login", "name", LocalDate.now().plusDays(1));
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(user)))
+                .andExpect(status().isBadRequest());
     }
 
-    // Тест валидации логина - не может содержать пробелов
     @Test
-    public void create_loginWithSpaces_throwsValidationException() {
-        User user = new User();
-        user.setEmail("user@mail.ru");
-        user.setLogin("login with spaces");
-        user.setBirthday(LocalDate.of(1995, 2, 13));
+    public void update_existingUserWithValidData_fieldsUpdated() throws Exception {
+        User user = new User(null, "user@mail.ru", "login", "name", LocalDate.of(1995, 2, 13));
+        String response = mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(user)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        User created = objectMapper.readValue(response, User.class);
 
-        assertThrows(ValidationException.class, () -> userController.create(user),
-                "Ожидалось ValidationException при логине с пробелами");
+        created.setEmail("new@mail.ru");
+        created.setLogin("new_login");
+
+        mockMvc.perform(put("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(created)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("new@mail.ru"))
+                .andExpect(jsonPath("$.login").value("new_login"));
     }
 
-    // Тест валидации даты рождения - не может быть в будущем
     @Test
-    public void create_birthdayInFuture_throwsValidationException() {
-        User user = new User();
-        user.setEmail("user@mail.ru");
-        user.setLogin("login");
-        user.setBirthday(LocalDate.now().plusDays(1));
-
-        assertThrows(ValidationException.class, () -> userController.create(user),
-                "Ожидалось ValidationException при дате рождения в будущем");
+    public void update_nonExistentUserId_throwsNotFoundException() throws Exception {
+        User user = new User(999L, "nonexistent@mail.ru", "login", "name", LocalDate.of(1995, 2, 13));
+        mockMvc.perform(put("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(toJson(user)))
+                .andExpect(status().isNotFound());
     }
 
-    // Тест обновления несуществующего пользователя
     @Test
-    public void update_nonExistentUserId_throwsNotFoundException() {
-        User user = new User();
-        user.setId(999L);
-        user.setEmail("user@mail.ru");
-        user.setLogin("login");
-        user.setBirthday(LocalDate.of(1995, 2, 13));
+    public void findAll_afterAddingTwoUsers_returnsCollectionSize2() throws Exception {
+        User user1 = new User(null, "user1@mail.ru", "login1", "name1", LocalDate.of(1984, 12, 13));
+        User user2 = new User(null, "user2@mail.ru", "login2", "name2", LocalDate.of(1985, 12, 14));
 
-        assertThrows(NotFoundException.class, () -> userController.update(user),
-                "Ожидалось NotFoundException при обновлении несуществующего пользователя");
-    }
+        mockMvc.perform(post("/users").contentType(MediaType.APPLICATION_JSON).content(toJson(user1))).andExpect(status().isOk());
+        mockMvc.perform(post("/users").contentType(MediaType.APPLICATION_JSON).content(toJson(user2))).andExpect(status().isOk());
 
-    // Тест успешного обновления пользователя
-    @Test
-    public void update_existingUserWithValidData_fieldsUpdated() {
-        // Создание пользователя
-        User user = new User();
-        user.setEmail("user@mail.ru");
-        user.setLogin("login");
-        user.setBirthday(LocalDate.of(1995, 2, 13));
-        User createdUser = userController.create(user);
-
-        // Обновление пользователя
-        User updatedUser = new User();
-        updatedUser.setId(createdUser.getId());
-        updatedUser.setEmail("new@mail.ru");
-        updatedUser.setLogin("new_login");
-        updatedUser.setBirthday(LocalDate.of(1995, 2, 13));
-        User result = userController.update(updatedUser);
-
-        assertEquals("new@mail.ru", result.getEmail(), "Email не обновился");
-        assertEquals("new_login", result.getLogin(), "Логин не обновился");
-        assertEquals(LocalDate.of(1995, 2, 13), result.getBirthday(),
-                "Дата рождения не обновилась");
-    }
-
-    // Тест получения списка всех пользователей
-    @Test
-    public void findAll_afterAddingTwoUsers_returnsCollectionSize2() {
-        User user1 = new User();
-        user1.setEmail("user1@mail.ru");
-        user1.setLogin("login1");
-        user1.setBirthday(LocalDate.of(1984, 12, 13));
-        userController.create(user1);
-
-        User user2 = new User();
-        user2.setEmail("user2@mail.ru");
-        user2.setLogin("login2");
-        user2.setBirthday(LocalDate.of(1985, 12, 14));
-        userController.create(user2);
-
-        assertEquals(2, userController.findAll().size(),
-                "Неверное количество пользователей в списке");
-    }
-
-    // Тест проверяет невозможность добавить пользователя равного null
-    @Test
-    public void create_nullUser_throwsValidationException() {
-        assertThrows(NullPointerException.class,
-                () -> userController.create(null),
-                "Ожидалось NullPointerException при null пользователе");
+        mockMvc.perform(get("/users"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
     }
 }

@@ -2,14 +2,16 @@ package ru.yandex.practicum.filmorate.controllers;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exceptions.*;
+import ru.yandex.practicum.filmorate.exceptions.DuplicateException;
+import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
+import jakarta.validation.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.IdGenerator;
 
 import java.util.*;
-
-import ru.yandex.practicum.filmorate.service.IdGenerator;
-import static ru.yandex.practicum.filmorate.utils.UserValidate.validateUser;
 
 @Slf4j
 @RestController
@@ -20,7 +22,6 @@ public class UserController {
     private final Set<String> userEmails = new HashSet<>();
     private final IdGenerator idGenerator = new IdGenerator();
 
-
     @GetMapping
     public Collection<User> findAll() {
         log.info("Получен запрос на вывод всех пользователей");
@@ -29,43 +30,42 @@ public class UserController {
 
     @PostMapping
     public User create(@Valid @RequestBody User newUser) {
-        log.info("Получен запрос на добавление нового пользователя {}", newUser.getLogin());
-
         if (newUser == null) {
-            log.error("Попытка добавить null");
-            throw new ValidationException("Пользователь не может быть null"); // ← также заменим NPE
+            log.error("Попытка добавить null вместо пользователя");
+            throw new ValidationException("Пользователь не может быть null");
         }
-
-        checkEmailUniqueness(newUser.getEmail());
-
-        validateUser(newUser);
-        userEmails.add(newUser.getEmail().toLowerCase());
-        newUser.setId(idGenerator.getNextId(users.keySet())); // ← заменили getNextId()
 
         if (newUser.getName() == null || newUser.getName().isBlank()) {
             newUser.setName(newUser.getLogin());
         }
 
+        String emailLower = newUser.getEmail().toLowerCase();
+        checkEmailUniqueness(emailLower);
+
+        newUser.setId(idGenerator.getNextId(users.keySet()));
         users.put(newUser.getId(), newUser);
+        userEmails.add(emailLower); // добавляем только после успешного добавления
+
         log.info("Пользователь {} успешно добавлен", newUser.getName());
         return newUser;
     }
 
     @PutMapping
     public User update(@Valid @RequestBody User user) {
-        log.info("Получен запрос на обновление пользователя с id:{}", user.getId());
+        if (user == null) {
+            log.error("Попытка обновить null вместо пользователя");
+            throw new ValidationException("Пользователь не может быть null");
+        }
 
         if (!users.containsKey(user.getId())) {
             log.error("Пользователь с id:{} не найден", user.getId());
             throw new NotFoundException("Пользователь с заданным id не существует");
         }
 
-        validateUser(user);
-
-        // Случай, когда при обновлении меняется email и нужно удалить старый из коллекции email-ов
         final User oldUser = users.get(user.getId());
         if (!oldUser.getEmail().equalsIgnoreCase(user.getEmail())) {
-            userEmails.remove(oldUser.getName().toLowerCase());
+            userEmails.remove(oldUser.getEmail().toLowerCase());
+            checkEmailUniqueness(user.getEmail());
             userEmails.add(user.getEmail().toLowerCase());
         }
 
@@ -78,11 +78,28 @@ public class UserController {
         return user;
     }
 
-    // Вспомогательный метод для проверки на наличие дубликата email
     private void checkEmailUniqueness(String email) {
+        if (email == null) {
+            throw new NullPointerException("Email не может быть null");
+        }
         if (userEmails.contains(email.toLowerCase())) {
             log.warn("Пользователь с email:{} уже был добавлен", email);
             throw new DuplicateException("Email уже используется");
         }
+    }
+
+    @ExceptionHandler(DuplicateException.class)
+    public ResponseEntity<String> handleDuplicate(DuplicateException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<String> handleValidation(ValidationException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<String> handleNotFound(NotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ex.getMessage());
     }
 }

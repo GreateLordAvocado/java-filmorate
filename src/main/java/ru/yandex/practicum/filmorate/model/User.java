@@ -1,16 +1,11 @@
 package ru.yandex.practicum.filmorate.model;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.time.LocalDate;
 
-/**
- * User.
- */
 @Data
 @EqualsAndHashCode(of = {"id"})
 public class User {
@@ -22,14 +17,25 @@ public class User {
     private String email;
 
     @NotBlank(message = "Логин не может быть пустым")
+    @NotBlank(message = "Логин не может быть пустым")
+    @Pattern(regexp = "^\\S+$", message = "Логин не должен содержать пробелов")
     private String login;
 
     private String name;
 
-    @Past(message = "Дата рождения не может быть в будущем")
+    @NotNull(message = "Дата рождения обязательна")
+    @PastOrPresent(message = "Дата рождения не может быть в будущем")
     private LocalDate birthday;
 
     public String getName() {
         return (name == null || name.isBlank()) ? login : name;
+    }
+
+    public User(Long id, String email, String login, String name, LocalDate birthday) {
+        this.id = id;
+        this.email = email;
+        this.login = login;
+        this.name = name;
+        this.birthday = birthday;
     }
 }
