@@ -2,7 +2,6 @@ package ru.yandex.practicum.filmorate.exceptions;
 
 import jakarta.validation.ValidationException;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
@@ -65,12 +64,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ResponseEntity<Map<String, String>> handleOthers(Throwable e) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", "Произошла непредвиденная ошибка: " + e.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                .body(error);
+    public ErrorResponse handleOthers(Throwable e) {
+        return new ErrorResponse("Произошла непредвиденная ошибка: " + e.getMessage());
     }
 }
