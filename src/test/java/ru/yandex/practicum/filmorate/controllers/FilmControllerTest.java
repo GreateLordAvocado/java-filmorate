@@ -161,6 +161,7 @@ class FilmControllerTest {
                         .content(objectMapper.writeValueAsString(film2)))
                 .andExpect(status().isConflict());
     }
+
     @Test
     @DisplayName("Должен вернуть 400 при null в названии фильма")
     void shouldReturnBadRequestWhenFilmNameIsNull() throws Exception {
