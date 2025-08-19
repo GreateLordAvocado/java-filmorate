@@ -62,5 +62,4 @@ public class FilmController {
         log.info("Запрос популярных фильмов, limit={}", count);
         return ResponseEntity.ok(filmService.getPopular(count));
     }
-
 }
