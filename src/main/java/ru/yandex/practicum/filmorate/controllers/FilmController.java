@@ -2,8 +2,10 @@ package ru.yandex.practicum.filmorate.controllers;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.yandex.practicum.filmorate.exceptions.ConflictException;
 import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
@@ -23,53 +25,57 @@ public class FilmController {
 
     @GetMapping
     public ResponseEntity<Collection<Film>> findAll() {
-        log.info("Получен запрос на вывод списка всех фильмов");
+        log.info("Запрос списка всех фильмов");
         return ResponseEntity.ok(filmService.getAll());
     }
 
     @PostMapping
     public ResponseEntity<Film> create(@Valid @RequestBody Film newFilm) {
-        log.info("Получен запрос на добавление фильма {}",
-                newFilm.getName() != null ? newFilm.getName() : "<null>");
-        Film created = filmService.create(newFilm); // если дубликат → выбросит ConflictException
-        log.debug("Фильм сохранён: {}", created);
-        return ResponseEntity.ok(created);
+        log.info("Запрос на добавление фильма: {}", newFilm.getName());
+        Film created = filmService.create(newFilm);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping
     public ResponseEntity<Film> update(@Valid @RequestBody Film film) {
-        log.info("Получен запрос на обновление фильма id={}", film.getId());
-
-        if (film.getId() == null) {
-            log.warn("Попытка обновления фильма без id");
-            return ResponseEntity.badRequest().build();
-        }
-
-        try {
-            Film updated = filmService.update(film);
-            return ResponseEntity.ok(updated);
-        } catch (NotFoundException e) {
-            return ResponseEntity.notFound().build();
-        }
+        log.info("Запрос на обновление фильма id={}", film.getId());
+        Film updated = filmService.update(film);
+        return ResponseEntity.ok(updated);
     }
 
     @PutMapping("/{id}/like/{userId}")
     public ResponseEntity<Void> addLike(@PathVariable Long id, @PathVariable Long userId) {
-        log.info("Получен запрос на добавление лайка фильму id={} от пользователя id={}", id, userId);
-        filmService.addLike(id, userId);
-        return ResponseEntity.noContent().build();
+        log.info("Добавление лайка фильму id={} от пользователя id={}", id, userId);
+        boolean added = filmService.addLike(id, userId);
+        return added
+                ? ResponseEntity.status(HttpStatus.CREATED).build() // новый лайк
+                : ResponseEntity.ok().build(); // лайк уже был
     }
 
     @DeleteMapping("/{id}/like/{userId}")
     public ResponseEntity<Void> removeLike(@PathVariable Long id, @PathVariable Long userId) {
-        log.info("Получен запрос на удаление лайка у фильма id={} от пользователя id={}", id, userId);
+        log.info("Удаление лайка у фильма id={} от пользователя id={}", id, userId);
         filmService.removeLike(id, userId);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/popular")
     public ResponseEntity<Collection<Film>> getPopular(@RequestParam(defaultValue = "10") int count) {
-        log.info("Получен запрос на список популярных фильмов, limit={}", count);
+        log.info("Запрос популярных фильмов, limit={}", count);
         return ResponseEntity.ok(filmService.getPopular(count));
     }
+
+    // Глобальная обработка исключений контроллера
+    @ExceptionHandler(NotFoundException.class)
+    public ResponseEntity<String> handleNotFound(NotFoundException e) {
+        log.warn("Ошибка: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<String> handleConflict(ConflictException e) {
+        log.warn("Ошибка: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+    }
+
 }

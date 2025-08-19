@@ -68,7 +68,7 @@ public class FilmService {
         filmStorage.delete(id);
     }
 
-    public void addLike(Long filmId, Long userId) {
+    public boolean addLike(Long filmId, Long userId) {
         log.info("Добавление лайка фильму id={} от пользователя id={}", filmId, userId);
         Film film = getById(filmId);
         userStorage.getById(userId)
@@ -76,8 +76,10 @@ public class FilmService {
                     log.warn("Пользователь с id={} не найден", userId);
                     return new NotFoundException("Пользователь с id=" + userId + " не найден");
                 });
-        film.getLikes().add(userId);
-        log.debug("Лайк добавлен: фильм id={}, теперь всего лайков={}", filmId, film.getLikes().size());
+        boolean added = film.getLikes().add(userId);
+        log.debug("Лайк {}: фильм id={}, всего лайков={}",
+                added ? "добавлен" : "уже был", filmId, film.getLikes().size());
+        return added;
     }
 
     public void removeLike(Long filmId, Long userId) {
@@ -89,7 +91,7 @@ public class FilmService {
                     return new NotFoundException("Пользователь с id=" + userId + " не найден");
                 });
         film.getLikes().remove(userId);
-        log.debug("Лайк удалён: фильм id={}, теперь всего лайков={}", filmId, film.getLikes().size());
+        log.debug("Лайк удалён: фильм id={}, всего лайков={}", filmId, film.getLikes().size());
     }
 
     public List<Film> getPopular(int count) {

@@ -31,22 +31,40 @@ class FilmControllerTest {
 
     @BeforeEach
     void setup() {
-        validFilm = new Film();
-        validFilm.setName("Интерстеллар");
-        validFilm.setDescription("Следующий шаг человечества станет величайшим");
-        validFilm.setReleaseDate(LocalDate.of(2014, 11, 7));
-        validFilm.setDuration(169);
+        validFilm = createFilm(
+                "Интерстеллар",
+                "Следующий шаг человечества станет величайшим",
+                LocalDate.of(2014, 11, 7),
+                169
+        );
+    }
+
+    private Film createFilm(String name, String description, LocalDate releaseDate, int duration) {
+        Film film = new Film();
+        film.setName(name);
+        film.setDescription(description);
+        film.setReleaseDate(releaseDate);
+        film.setDuration(duration);
+        return film;
+    }
+
+    private User createUser(String email, String login, String name, LocalDate birthday) {
+        User user = new User();
+        user.setEmail(email);
+        user.setLogin(login);
+        user.setName(name);
+        user.setBirthday(birthday);
+        return user;
     }
 
     @Test
-    void create_validFilm_returns200() throws Exception {
+    void create_validFilm_returns201() throws Exception {
         mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validFilm)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists());
     }
-
     @Test
     void create_releaseDateTooEarly_returns400() throws Exception {
         validFilm.setReleaseDate(LocalDate.of(1700, 1, 1));
@@ -78,13 +96,13 @@ class FilmControllerTest {
     }
 
     @Test
-    void update_nullId_returns400() throws Exception {
+    void update_nullId_returns404() throws Exception {
         validFilm.setId(null);
 
         mockMvc.perform(put("/films")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validFilm)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -126,40 +144,27 @@ class FilmControllerTest {
     }
 
     @Test
-    @DisplayName("Должен вернуть 409 при попытке создать фильм с уже существующим названием и датой")
-    void shouldReturnConflictWhenFilmAlreadyExists() throws Exception {
-        Film film1 = new Film();
-        film1.setName("Film 1");
-        film1.setDescription("Description");
-        film1.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film1.setDuration(120);
+    @DisplayName("Должен вернуть 201 при создании нового фильма и 409 при дубликате")
+    void shouldReturnCreatedOrConflictForDuplicateFilm() throws Exception {
+        Film film1 = createFilm("Film 1", "Description", LocalDate.of(2000, 1, 1), 120);
+        Film film2 = createFilm("Film 1", "Another description", LocalDate.of(2000, 1, 1), 130);
 
-        Film film2 = new Film();
-        film2.setName("Film 1");
-        film2.setDescription("Another description");
-        film2.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film2.setDuration(130);
-
+        // Добавление первого фильма → 201 Created
         mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(film1)))
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
+        // Добавление второго фильма (дубликата) → 409 Conflict
         mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(film2)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("Фильм с таким названием и датой релиза уже существует"));
+                .andExpect(status().isConflict());
     }
-
     @Test
     @DisplayName("Должен вернуть 400 при null в названии фильма")
     void shouldReturnBadRequestWhenFilmNameIsNull() throws Exception {
-        Film film = new Film();
-        film.setName(null);
-        film.setDescription("Description");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(120);
+        Film film = createFilm(null, "Description", LocalDate.of(2000, 1, 1), 120);
 
         mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -170,11 +175,7 @@ class FilmControllerTest {
 
     @Test
     void shouldReturnBadRequestWhenFilmNameIsBlank() throws Exception {
-        Film film = new Film();
-        film.setName("");
-        film.setDescription("Описание");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(100);
+        Film film = createFilm("", "Описание", LocalDate.of(2000, 1, 1), 100);
 
         mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -184,11 +185,7 @@ class FilmControllerTest {
 
     @Test
     void shouldReturnBadRequestWhenDescriptionTooLong() throws Exception {
-        Film film = new Film();
-        film.setName("Film");
-        film.setDescription("A".repeat(201));
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(100);
+        Film film = createFilm("Film", "A".repeat(201), LocalDate.of(2000, 1, 1), 100);
 
         mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -198,11 +195,7 @@ class FilmControllerTest {
 
     @Test
     void shouldReturnBadRequestWhenDurationIsNegative() throws Exception {
-        Film film = new Film();
-        film.setName("Film");
-        film.setDescription("Описание");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(-10);
+        Film film = createFilm("Film", "Описание", LocalDate.of(2000, 1, 1), -10);
 
         mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -212,39 +205,35 @@ class FilmControllerTest {
 
     @Test
     void shouldNotAllowSameUserToLikeFilmTwice() throws Exception {
-        User user = new User();
-        user.setId(1L);
-        user.setEmail("user@mail.com");
-        user.setLogin("user");
-        user.setName("User Name");
-        user.setBirthday(LocalDate.of(1990, 1, 1));
+        User user = createUser("user@mail.com", "user", "User Name", LocalDate.of(1990, 1, 1));
+        Film film = createFilm("Film Title", "Description", LocalDate.of(2000, 1, 1), 120);
 
-        Film film = new Film();
-        film.setId(1L);
-        film.setName("Film Title");
-        film.setDescription("Description");
-        film.setReleaseDate(LocalDate.of(2000, 1, 1));
-        film.setDuration(120);
-
-        mockMvc.perform(post("/users")
+        String userResponse = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk()) // 200 OK при создании пользователя
+                .andReturn().getResponse().getContentAsString();
+        Long userId = objectMapper.readValue(userResponse, User.class).getId();
 
-        mockMvc.perform(post("/films")
+        String filmResponse = mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(film)))
+                .andExpect(status().isCreated()) // 201 Created при создании фильма
+                .andReturn().getResponse().getContentAsString();
+        Long filmId = objectMapper.readValue(filmResponse, Film.class).getId();
+
+        // Первый лайк → 201 Created
+        mockMvc.perform(put("/films/" + filmId + "/like/" + userId))
+                .andExpect(status().isCreated());
+
+        // Второй лайк от того же пользователя → 200 OK
+        mockMvc.perform(put("/films/" + filmId + "/like/" + userId))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(put("/films/1/like/1"))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(put("/films/1/like/1"))
-                .andExpect(status().isNoContent());
-
+        // Проверка, что всего 1 лайк
         mockMvc.perform(get("/films/popular"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].id").value(filmId))
                 .andExpect(jsonPath("$[0].likes.length()").value(1));
     }
 }
