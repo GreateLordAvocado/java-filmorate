@@ -5,8 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exceptions.ConflictException;
-import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
 
@@ -48,8 +46,8 @@ public class FilmController {
         log.info("Добавление лайка фильму id={} от пользователя id={}", id, userId);
         boolean added = filmService.addLike(id, userId);
         return added
-                ? ResponseEntity.status(HttpStatus.CREATED).build() // новый лайк
-                : ResponseEntity.ok().build(); // лайк уже был
+                ? ResponseEntity.status(HttpStatus.CREATED).build()
+                : ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{id}/like/{userId}")
@@ -63,19 +61,6 @@ public class FilmController {
     public ResponseEntity<Collection<Film>> getPopular(@RequestParam(defaultValue = "10") int count) {
         log.info("Запрос популярных фильмов, limit={}", count);
         return ResponseEntity.ok(filmService.getPopular(count));
-    }
-
-    // Глобальная обработка исключений контроллера
-    @ExceptionHandler(NotFoundException.class)
-    public ResponseEntity<String> handleNotFound(NotFoundException e) {
-        log.warn("Ошибка: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-    }
-
-    @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<String> handleConflict(ConflictException e) {
-        log.warn("Ошибка: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
     }
 
 }
