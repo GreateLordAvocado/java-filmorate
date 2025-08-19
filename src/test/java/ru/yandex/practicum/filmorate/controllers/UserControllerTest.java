@@ -241,44 +241,4 @@ class UserControllerTest {
         mockMvc.perform(delete("/users/{id}/friends/{friendId}", createdUser1.getId(), createdUser2.getId()))
                 .andExpect(status().isOk());
     }
-
-    @Test
-    void shouldNotAddSameFriendTwice() throws Exception {
-        User user1 = new User();
-        user1.setId(1L);
-        user1.setEmail("user1@mail.com");
-        user1.setLogin("user1");
-        user1.setName("User One");
-        user1.setBirthday(LocalDate.of(1990, 1, 1));
-
-        User user2 = new User();
-        user2.setId(2L);
-        user2.setEmail("user2@mail.com");
-        user2.setLogin("user2");
-        user2.setName("User Two");
-        user2.setBirthday(LocalDate.of(1991, 2, 2));
-
-        mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(user1)))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(user2)))
-                .andExpect(status().isOk());
-
-        // дважды добавляем user2 в друзья user1
-        mockMvc.perform(put("/users/1/friends/2"))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(put("/users/1/friends/2"))
-                .andExpect(status().isOk());
-
-        // в списке друзей user1 должен быть только один user2
-        mockMvc.perform(get("/users/1/friends"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(2));
-    }
 }

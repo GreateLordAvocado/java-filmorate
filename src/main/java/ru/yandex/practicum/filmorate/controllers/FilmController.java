@@ -44,17 +44,15 @@ public class FilmController {
     @PutMapping("/{id}/like/{userId}")
     public ResponseEntity<Void> addLike(@PathVariable Long id, @PathVariable Long userId) {
         log.info("Добавление лайка фильму id={} от пользователя id={}", id, userId);
-        boolean added = filmService.addLike(id, userId);
-        return added
-                ? ResponseEntity.status(HttpStatus.CREATED).build()
-                : ResponseEntity.ok().build();
+        filmService.addLike(id, userId);
+        return ResponseEntity.noContent().build(); // 204
     }
 
     @DeleteMapping("/{id}/like/{userId}")
     public ResponseEntity<Void> removeLike(@PathVariable Long id, @PathVariable Long userId) {
         log.info("Удаление лайка у фильма id={} от пользователя id={}", id, userId);
         filmService.removeLike(id, userId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.noContent().build(); // 204
     }
 
     @GetMapping("/popular")

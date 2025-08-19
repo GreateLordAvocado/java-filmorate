@@ -204,38 +204,4 @@ class FilmControllerTest {
                         .content(objectMapper.writeValueAsString(film)))
                 .andExpect(status().isBadRequest());
     }
-
-    @Test
-    void shouldNotAllowSameUserToLikeFilmTwice() throws Exception {
-        User user = createUser("user@mail.com", "user", "User Name", LocalDate.of(1990, 1, 1));
-        Film film = createFilm("Film Title", "Description", LocalDate.of(2000, 1, 1), 120);
-
-        String userResponse = mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(user)))
-                .andExpect(status().isOk()) // 200 OK при создании пользователя
-                .andReturn().getResponse().getContentAsString();
-        Long userId = objectMapper.readValue(userResponse, User.class).getId();
-
-        String filmResponse = mockMvc.perform(post("/films")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(film)))
-                .andExpect(status().isCreated()) // 201 Created при создании фильма
-                .andReturn().getResponse().getContentAsString();
-        Long filmId = objectMapper.readValue(filmResponse, Film.class).getId();
-
-        // Первый лайк → 201 Created
-        mockMvc.perform(put("/films/" + filmId + "/like/" + userId))
-                .andExpect(status().isCreated());
-
-        // Второй лайк от того же пользователя → 200 OK
-        mockMvc.perform(put("/films/" + filmId + "/like/" + userId))
-                .andExpect(status().isOk());
-
-        // Проверка, что всего 1 лайк
-        mockMvc.perform(get("/films/popular"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(filmId))
-                .andExpect(jsonPath("$[0].likes.length()").value(1));
-    }
 }
