@@ -71,5 +71,5 @@ public class FilmController {
     public ResponseEntity<Collection<Film>> getPopular(@RequestParam(defaultValue = "10") int count) {
         log.info("Получен запрос на список популярных фильмов, limit={}", count);
         return ResponseEntity.ok(filmService.getPopular(count));
-    } //
+    }
 }
