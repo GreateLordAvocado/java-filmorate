@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 @Data
 @EqualsAndHashCode(of = {"id"})
@@ -17,7 +19,6 @@ public class User {
     private String email;
 
     @NotBlank(message = "Логин не может быть пустым")
-    @NotBlank(message = "Логин не может быть пустым")
     @Pattern(regexp = "^\\S+$", message = "Логин не должен содержать пробелов")
     private String login;
 
@@ -27,15 +28,12 @@ public class User {
     @PastOrPresent(message = "Дата рождения не может быть в будущем")
     private LocalDate birthday;
 
+    private final Set<Long> friends = new HashSet<>();
+
     public String getName() {
         return (name == null || name.isBlank()) ? login : name;
     }
 
-    public User(Long id, String email, String login, String name, LocalDate birthday) {
-        this.id = id;
-        this.email = email;
-        this.login = login;
-        this.name = name;
-        this.birthday = birthday;
+    public User() {
     }
 }

@@ -10,9 +10,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class ErrorHandler {
 
-    @ExceptionHandler
+    @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleNotFound(NotFoundException e) {
         return new ErrorResponse(e.getMessage());
@@ -24,37 +24,43 @@ public class GlobalExceptionHandler {
         return new ErrorResponse(e.getMessage());
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, String> handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
+    public ErrorResponse handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
         Map<String, String> errors = new HashMap<>();
         e.getBindingResult().getFieldErrors().forEach(error ->
                 errors.put(error.getField(), error.getDefaultMessage())
         );
-        return errors;
+        return new ErrorResponse("Ошибка валидации", errors);
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleConstraintViolation(jakarta.validation.ConstraintViolationException e) {
         return new ErrorResponse("Ошибка валидации: " + e.getMessage());
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
         return new ErrorResponse("Тело запроса не может быть пустым или некорректным");
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(ConflictException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleConflict(ConflictException e) {
+        return new ErrorResponse(e.getMessage());
+    }
+
+    @ExceptionHandler(DuplicateException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleDuplicate(DuplicateException e) {
         return new ErrorResponse(e.getMessage());
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ErrorResponse handleOthers(Throwable e) {
+    public ErrorResponse handleOthers(Exception e) {
         return new ErrorResponse("Произошла непредвиденная ошибка: " + e.getMessage());
     }
 }
