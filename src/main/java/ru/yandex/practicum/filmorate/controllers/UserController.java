@@ -78,5 +78,5 @@ public class UserController {
     public ResponseEntity<List<User>> getCommonFriends(@PathVariable Long id, @PathVariable Long otherId) {
         log.info("Получен запрос на получение общих друзей пользователей id={} и id={}", id, otherId);
         return ResponseEntity.ok(userService.getCommonFriends(id, otherId));
-    }
+    } //
 }
