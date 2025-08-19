@@ -65,6 +65,7 @@ class FilmControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists());
     }
+
     @Test
     void create_releaseDateTooEarly_returns400() throws Exception {
         validFilm.setReleaseDate(LocalDate.of(1700, 1, 1));
