@@ -18,12 +18,12 @@ public class InMemoryUserStorage implements UserStorage {
     }
 
     @Override
-    public User update(User user) {
+    public Optional<User> update(User user) {
         if (user.getId() == null || !users.containsKey(user.getId())) {
-            throw new NoSuchElementException("Пользователь с id=" + user.getId() + " не найден");
+            return Optional.empty();
         }
         users.put(user.getId(), user);
-        return user;
+        return Optional.of(user);
     }
 
     @Override

@@ -8,7 +8,7 @@ public interface UserStorage {
 
     User create(User user);
 
-    User update(User user);
+    Optional<User> update(User user);
 
     Optional<User> getById(Long id);
 

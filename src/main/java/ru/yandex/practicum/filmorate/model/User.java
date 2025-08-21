@@ -34,6 +34,14 @@ public class User {
         return (name == null || name.isBlank()) ? login : name;
     }
 
+    public void addFriend(Long friendId) {
+        friends.add(friendId);
+    }
+
+    public void removeFriend(Long friendId) {
+        friends.remove(friendId);
+    }
+
     public User() {
     }
 }

@@ -68,8 +68,7 @@ class UserServiceTest {
         user1.getFriends().addAll(Set.of(2L, 3L));
 
         when(userStorage.getById(1L)).thenReturn(Optional.of(user1));
-        when(userStorage.getById(2L)).thenReturn(Optional.of(user2));
-        when(userStorage.getById(3L)).thenReturn(Optional.of(user3));
+        when(userStorage.getAll()).thenReturn(List.of(user1, user2, user3)); // 🔥 добавили
 
         List<User> friends = userService.getFriends(1L);
 
@@ -90,6 +89,8 @@ class UserServiceTest {
         when(userStorage.getById(1L)).thenReturn(Optional.of(user1));
         when(userStorage.getById(2L)).thenReturn(Optional.of(user2));
         when(userStorage.getById(3L)).thenReturn(Optional.of(user3));
+
+        when(userStorage.getAll()).thenReturn(List.of(user1, user2, user3));
 
         List<User> common = userService.getCommonFriends(1L, 2L);
 

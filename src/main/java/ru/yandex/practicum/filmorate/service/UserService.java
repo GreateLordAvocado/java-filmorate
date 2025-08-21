@@ -7,7 +7,7 @@ import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,12 +27,11 @@ public class UserService {
 
     public User update(User user) {
         log.debug("Обновление пользователя: {}", user);
-        try {
-            return userStorage.update(user);
-        } catch (NoSuchElementException e) {
-            log.warn("Не удалось обновить пользователя id={}", user.getId());
-            throw new NotFoundException("Пользователь с id=" + user.getId() + " не найден");
-        }
+        return userStorage.update(user)
+                .orElseThrow(() -> {
+                    log.warn("Не удалось обновить пользователя id={}", user.getId());
+                    return new NotFoundException("Пользователь с id=" + user.getId() + " не найден");
+                });
     }
 
     public User getById(Long id) {
@@ -40,10 +39,7 @@ public class UserService {
         return userStorage.getById(id)
                 .orElseThrow(() -> {
                     log.warn("Пользователь с id={} не найден", id);
-                    NotFoundException e =
-                            new NotFoundException("Пользователь с id=" + id + " не найден");
-                    e.printStackTrace();
-                    return e;
+                    return new NotFoundException("Пользователь с id=" + id + " не найден");
                 });
     }
 
@@ -54,10 +50,11 @@ public class UserService {
 
     public void delete(Long id) {
         log.info("Удаление пользователя id={}", id);
-        if (userStorage.getById(id).isEmpty()) {
-            log.warn("Попытка удалить несуществующего пользователя id={}", id);
-            throw new NotFoundException("Пользователь с id=" + id + " не найден");
-        }
+        userStorage.getById(id)
+                .orElseThrow(() -> {
+                    log.warn("Попытка удалить несуществующего пользователя id={}", id);
+                    return new NotFoundException("Пользователь с id=" + id + " не найден");
+                });
         userStorage.delete(id);
         log.info("Пользователь id={} успешно удален", id);
     }
@@ -66,10 +63,13 @@ public class UserService {
         log.info("Добавление в друзья: пользователь id={} и пользователь id={}", id, friendId);
         User user = getById(id);
         User friend = getById(friendId);
-        user.getFriends().add(friendId);
-        friend.getFriends().add(id);
+
+        user.addFriend(friendId);
+        friend.addFriend(id);
+
         userStorage.update(user);
         userStorage.update(friend);
+
         log.debug("Теперь у пользователя id={} всего друзей: {}", id, user.getFriends().size());
         log.debug("Теперь у пользователя id={} всего друзей: {}", friendId, friend.getFriends().size());
     }
@@ -78,10 +78,13 @@ public class UserService {
         log.info("Удаление из друзей: пользователь id={} и пользователь id={}", id, friendId);
         User user = getById(id);
         User friend = getById(friendId);
-        user.getFriends().remove(friendId);
-        friend.getFriends().remove(id);
+
+        user.removeFriend(friendId);
+        friend.removeFriend(id);
+
         userStorage.update(user);
         userStorage.update(friend);
+
         log.debug("После удаления у пользователя id={} всего друзей: {}", id, user.getFriends().size());
         log.debug("После удаления у пользователя id={} всего друзей: {}", friendId, friend.getFriends().size());
     }
@@ -89,9 +92,15 @@ public class UserService {
     public List<User> getFriends(Long id) {
         log.info("Запрос на получение друзей пользователя id={}", id);
         User user = getById(id);
+
+        // Заметил что тут такая же ситуация по аналогии с методом ниже поэтому тоже решил подправить
+        Map<Long, User> userMap = userStorage.getAll().stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+
         List<User> friends = user.getFriends().stream()
-                .map(this::getById)
+                .map(userMap::get)
                 .collect(Collectors.toList());
+
         log.debug("Найдено друзей у пользователя id={}: {}", id, friends.size());
         return friends;
     }
@@ -100,10 +109,16 @@ public class UserService {
         log.info("Запрос на общих друзей: пользователь id={} и пользователь id={}", id, otherId);
         Set<Long> friendsOfUser = getById(id).getFriends();
         Set<Long> friendsOfOther = getById(otherId).getFriends();
+
+        // Выгрузка всех пользователей в Map для быстрого доступа
+        Map<Long, User> userMap = userStorage.getAll().stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+
         List<User> common = friendsOfUser.stream()
                 .filter(friendsOfOther::contains)
-                .map(this::getById)
+                .map(userMap::get)
                 .collect(Collectors.toList());
+
         log.debug("Общие друзья найдены: {}", common.size());
         return common;
     }
