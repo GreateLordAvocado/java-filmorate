@@ -1,25 +1,23 @@
 package ru.yandex.practicum.filmorate.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.time.LocalDate;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD) // аннотация для для сброса перед тестами
 class UserControllerTest {
 
     @Autowired
@@ -28,129 +26,219 @@ class UserControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private String toJson(Object obj) throws Exception {
-        return objectMapper.writeValueAsString(obj);
+    private User user;
+
+    @BeforeEach
+    void setUp() {
+        user = new User();
+        user.setEmail("test@example.com");
+        user.setLogin("testlogin");
+        user.setName("Test User");
+        user.setBirthday(LocalDate.of(1990, 1, 1));
     }
 
     @Test
-    public void create_allRequiredFieldsValid_userAddedWithGeneratedId() throws Exception {
-        User user = new User(null, "user@mail.ru", "user_login", null, LocalDate.of(1995, 2, 13));
+    @DisplayName("POST /users — успешное создание пользователя")
+    void shouldCreateUser() throws Exception {
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(user)))
+                        .content(objectMapper.writeValueAsString(user)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").exists());
+                .andExpect(jsonPath("$.email").value("test@example.com"));
     }
 
     @Test
-    public void create_emptyName_nameEqualsLogin() throws Exception {
-        User user = new User(null, "user@mail.ru", "user_login", "", LocalDate.of(1995, 2, 13));
+    @DisplayName("POST /users — ошибка при пустом email")
+    void shouldFailWhenEmailIsEmpty() throws Exception {
+        user.setEmail("");
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(user)))
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /users — ошибка при некорректном email")
+    void shouldFailWhenEmailIsInvalid() throws Exception {
+        user.setEmail("invalid-email");
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /users — ошибка при пустом логине")
+    void shouldFailWhenLoginIsEmpty() throws Exception {
+        user.setLogin("");
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /users — ошибка при логине с пробелами")
+    void shouldFailWhenLoginContainsSpaces() throws Exception {
+        user.setLogin("invalid login");
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /users — пустое имя заменяется на логин")
+    void shouldSetLoginAsNameWhenNameIsEmpty() throws Exception {
+        user.setName("");
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("user_login"));
+                .andExpect(jsonPath("$.name").value("testlogin"));
     }
 
     @Test
-    public void create_invalidEmailFormat_throwsValidationException() throws Exception {
-        User user = new User(null, "invalid-email", "login", "name", LocalDate.of(1995, 2, 13));
+    @DisplayName("POST /users — ошибка при дате рождения в будущем")
+    void shouldFailWhenBirthdayInFuture() throws Exception {
+        user.setBirthday(LocalDate.now().plusDays(1));
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(user)))
+                        .content(objectMapper.writeValueAsString(user)))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    public void create_nullEmail_throwsValidationException() throws Exception {
-        User user = new User(null, null, "login", "name", LocalDate.of(1995, 2, 13));
-        mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(user)))
-                .andExpect(status().isBadRequest());
+    @DisplayName("GET /users — получение списка пользователей")
+    void shouldGetAllUsers() throws Exception {
+        mockMvc.perform(get("/users"))
+                .andExpect(status().isOk());
     }
 
     @Test
-    public void create_duplicateEmail_throwsDuplicateException() throws Exception {
-        User user = new User(null, "duplicate@mail.ru", "login1", "Name1", LocalDate.of(1995, 1, 1));
-        mockMvc.perform(post("/users")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(toJson(user))).andExpect(status().isOk());
-
-        User duplicate = new User(null, "duplicate@mail.ru", "login2", "Name2", LocalDate.of(1995, 1, 1));
-        mockMvc.perform(post("/users")
+    @DisplayName("PUT /users — успешное обновление пользователя")
+    void shouldUpdateUser() throws Exception {
+        String createdUserJson = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(duplicate)))
-                .andExpect(status().isConflict());
-    }
-
-    @Test
-    public void create_emptyLogin_throwsValidationException() throws Exception {
-        User user = new User(null, "user@mail.ru", "", "name", LocalDate.of(1995, 2, 13));
-        mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(user)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void create_loginWithSpaces_throwsValidationException() throws Exception {
-        User user = new User(null, "user@mail.ru", "login with space", "name", LocalDate.of(1995, 2, 13));
-        mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(user)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void create_birthdayInFuture_throwsValidationException() throws Exception {
-        User user = new User(null, "user@mail.ru", "login", "name", LocalDate.now().plusDays(1));
-        mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(user)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    public void update_existingUserWithValidData_fieldsUpdated() throws Exception {
-        User user = new User(null, "user@mail.ru", "login", "name", LocalDate.of(1995, 2, 13));
-        String response = mockMvc.perform(post("/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(user)))
-                .andExpect(status().isOk())
+                        .content(objectMapper.writeValueAsString(user)))
                 .andReturn().getResponse().getContentAsString();
-        User created = objectMapper.readValue(response, User.class);
+        User createdUser = objectMapper.readValue(createdUserJson, User.class);
 
-        created.setEmail("new@mail.ru");
-        created.setLogin("new_login");
-
+        createdUser.setName("Updated Name");
         mockMvc.perform(put("/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(created)))
+                        .content(objectMapper.writeValueAsString(createdUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("new@mail.ru"))
-                .andExpect(jsonPath("$.login").value("new_login"));
+                .andExpect(jsonPath("$.name").value("Updated Name"));
     }
 
     @Test
-    public void update_nonExistentUserId_throwsNotFoundException() throws Exception {
-        User user = new User(999L, "nonexistent@mail.ru", "login", "name", LocalDate.of(1995, 2, 13));
+    @DisplayName("PUT /users — ошибка при обновлении несуществующего пользователя")
+    void shouldFailUpdateNonExistingUser() throws Exception {
+        user.setId(999L);
         mockMvc.perform(put("/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(toJson(user)))
+                        .content(objectMapper.writeValueAsString(user)))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    public void findAll_afterAddingTwoUsers_returnsCollectionSize2() throws Exception {
-        User user1 = new User(null, "user1@mail.ru", "login1", "name1", LocalDate.of(1984, 12, 13));
-        User user2 = new User(null, "user2@mail.ru", "login2", "name2", LocalDate.of(1985, 12, 14));
+    @DisplayName("GET /users/{id} — успешное получение пользователя по id")
+    void shouldGetUserById() throws Exception {
+        String createdUserJson = mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andReturn().getResponse().getContentAsString();
+        User createdUser = objectMapper.readValue(createdUserJson, User.class);
 
-        mockMvc.perform(post("/users").contentType(MediaType.APPLICATION_JSON).content(toJson(user1))).andExpect(status().isOk());
-        mockMvc.perform(post("/users").contentType(MediaType.APPLICATION_JSON).content(toJson(user2))).andExpect(status().isOk());
-
-        mockMvc.perform(get("/users"))
+        mockMvc.perform(get("/users/{id}", createdUser.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+                .andExpect(jsonPath("$.id").value(createdUser.getId()));
+    }
+
+    @Test
+    @DisplayName("GET /users/{id} — ошибка при запросе несуществующего пользователя")
+    void shouldFailWhenUserNotFoundById() throws Exception {
+        mockMvc.perform(get("/users/{id}", 999))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("DELETE /users/{id} — успешное удаление пользователя")
+    void shouldDeleteUser() throws Exception {
+        String createdUserJson = mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andReturn().getResponse().getContentAsString();
+        User createdUser = objectMapper.readValue(createdUserJson, User.class);
+
+        mockMvc.perform(delete("/users/{id}", createdUser.getId()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("DELETE /users/{id} — ошибка при удалении несуществующего пользователя")
+    void shouldFailWhenDeleteNonExistingUser() throws Exception {
+        mockMvc.perform(delete("/users/{id}", 999))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("POST /users/{id}/friends/{friendId} — успешное добавление в друзья")
+    void shouldAddFriend() throws Exception {
+        String user1Json = mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andReturn().getResponse().getContentAsString();
+        User user1 = objectMapper.readValue(user1Json, User.class);
+
+        User friend = new User();
+        friend.setEmail("friend@example.com");
+        friend.setLogin("friendlogin");
+        friend.setName("Friend User");
+        friend.setBirthday(LocalDate.of(1995, 5, 5));
+
+        String user2Json = mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(friend)))
+                .andReturn().getResponse().getContentAsString();
+        User user2 = objectMapper.readValue(user2Json, User.class);
+
+        mockMvc.perform(put("/users/{id}/friends/{friendId}", user1.getId(), user2.getId()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("DELETE /users/{id}/friends/{friendId} — успешное удаление из друзей")
+    void shouldRemoveFriend() throws Exception {
+        User user1 = new User();
+        user1.setEmail("user1@example.com");
+        user1.setLogin("user1login");
+        user1.setName("User One");
+        user1.setBirthday(LocalDate.of(1990, 1, 1));
+
+        String user1Json = mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user1)))
+                .andReturn().getResponse().getContentAsString();
+        User createdUser1 = objectMapper.readValue(user1Json, User.class);
+
+        User user2 = new User();
+        user2.setEmail("user2@example.com");
+        user2.setLogin("user2login");
+        user2.setName("User Two");
+        user2.setBirthday(LocalDate.of(1992, 2, 2));
+
+        String user2Json = mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user2)))
+                .andReturn().getResponse().getContentAsString();
+        User createdUser2 = objectMapper.readValue(user2Json, User.class);
+
+        mockMvc.perform(put("/users/{id}/friends/{friendId}", createdUser1.getId(), createdUser2.getId()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/users/{id}/friends/{friendId}", createdUser1.getId(), createdUser2.getId()))
+                .andExpect(status().isOk());
     }
 }

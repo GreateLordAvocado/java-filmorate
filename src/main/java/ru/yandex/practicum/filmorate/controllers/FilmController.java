@@ -1,57 +1,61 @@
 package ru.yandex.practicum.filmorate.controllers;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import jakarta.validation.ValidationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.service.IdGenerator;
+import ru.yandex.practicum.filmorate.service.FilmService;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
 @RestController
 @RequestMapping("/films")
+@RequiredArgsConstructor
 public class FilmController {
 
-    private final Map<Long, Film> films = new HashMap<>();
-    private final IdGenerator idGenerator = new IdGenerator();
+    private final FilmService filmService;
 
     @GetMapping
-    public Collection<Film> findAll() {
-        log.info("Получен запрос на вывод списка всех фильмов");
-        return films.values();
+    public ResponseEntity<Collection<Film>> findAll() {
+        log.info("Запрос списка всех фильмов");
+        return ResponseEntity.ok(filmService.getAll());
     }
 
     @PostMapping
-    public Film create(@Valid @RequestBody Film newFilm) {
-        if (newFilm == null) {
-            throw new ValidationException("Фильм не может быть null");
-        }
-
-        newFilm.setId(idGenerator.getNextId(films.keySet()));
-        films.put(newFilm.getId(), newFilm);
-        return newFilm;
+    public ResponseEntity<Film> create(@Valid @RequestBody Film newFilm) {
+        log.info("Запрос на добавление фильма: {}", newFilm.getName());
+        Film created = filmService.create(newFilm);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping
-    public Film update(@Valid @RequestBody Film film) {
-        if (film == null) {
-            throw new ValidationException("Фильм не может быть null");
-        }
+    public ResponseEntity<Film> update(@Valid @RequestBody Film film) {
+        log.info("Запрос на обновление фильма id={}", film.getId());
+        Film updated = filmService.update(film);
+        return ResponseEntity.ok(updated);
+    }
 
-        if (film.getId() == null) {
-            throw new ValidationException("Id фильма не может быть null");
-        }
+    @PutMapping("/{id}/like/{userId}")
+    public ResponseEntity<Void> addLike(@PathVariable Long id, @PathVariable Long userId) {
+        log.info("Добавление лайка фильму id={} от пользователя id={}", id, userId);
+        filmService.addLike(id, userId);
+        return ResponseEntity.noContent().build(); // 204
+    }
 
-        if (!films.containsKey(film.getId())) {
-            throw new NotFoundException("Фильм с id:" + film.getId() + " не найден");
-        }
+    @DeleteMapping("/{id}/like/{userId}")
+    public ResponseEntity<Void> removeLike(@PathVariable Long id, @PathVariable Long userId) {
+        log.info("Удаление лайка у фильма id={} от пользователя id={}", id, userId);
+        filmService.removeLike(id, userId);
+        return ResponseEntity.noContent().build(); // 204
+    }
 
-        films.put(film.getId(), film);
-        return film;
+    @GetMapping("/popular")
+    public ResponseEntity<Collection<Film>> getPopular(@RequestParam(defaultValue = "10") int count) {
+        log.info("Запрос популярных фильмов, limit={}", count);
+        return ResponseEntity.ok(filmService.getPopular(count));
     }
 }
