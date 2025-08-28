@@ -34,7 +34,6 @@ public class Film {
 
     private final Set<Long> likes = new HashSet<>();
 
-    // Убрали @NotNull, чтобы не ловить 400 на валидации при update с null-id
     private Mpa mpa;
 
     private Set<Genre> genres = new HashSet<>();
