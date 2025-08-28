@@ -93,7 +93,6 @@ public class UserService {
         log.info("Запрос на получение друзей пользователя id={}", id);
         User user = getById(id);
 
-        // Заметил что тут такая же ситуация по аналогии с методом ниже поэтому тоже решил подправить
         Map<Long, User> userMap = userStorage.getAll().stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 
@@ -110,7 +109,6 @@ public class UserService {
         Set<Long> friendsOfUser = getById(id).getFriends();
         Set<Long> friendsOfOther = getById(otherId).getFriends();
 
-        // Выгрузка всех пользователей в Map для быстрого доступа
         Map<Long, User> userMap = userStorage.getAll().stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 

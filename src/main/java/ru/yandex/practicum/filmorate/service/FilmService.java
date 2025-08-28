@@ -41,6 +41,11 @@ public class FilmService {
     public Film update(Film film) {
         log.debug("Обновление фильма: {}", film);
 
+        if (film.getId() == null) {
+            log.warn("Попытка обновить фильм без id (null)");
+            throw new NotFoundException("Фильм с id=null не найден");
+        }
+
         if (filmStorage.getById(film.getId()).isEmpty()) {
             log.warn("Фильм с id={} не найден", film.getId());
             throw new NotFoundException("Фильм с id=" + film.getId() + " не найден");
