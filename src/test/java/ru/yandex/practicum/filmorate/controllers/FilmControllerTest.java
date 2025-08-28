@@ -150,13 +150,11 @@ class FilmControllerTest {
         Film film1 = createFilm("Film 1", "Description", LocalDate.of(2000, 1, 1), 120);
         Film film2 = createFilm("Film 1", "Another description", LocalDate.of(2000, 1, 1), 130);
 
-        // Добавление первого фильма → 201 Created
         mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(film1)))
                 .andExpect(status().isCreated());
 
-        // Добавление второго фильма (дубликата) → 409 Conflict
         mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(film2)))
