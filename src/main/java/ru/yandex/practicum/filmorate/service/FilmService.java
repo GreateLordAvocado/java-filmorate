@@ -42,18 +42,13 @@ public class FilmService {
 
     public Film create(Film film) {
         log.debug("Создание фильма: {}", film);
-
-        // Приводим MPA/жанры к каноничному виду, валидируем id
         normalizeMpa(film);
         normalizeGenres(film);
-
-        // По ТЗ GitHub не ожидает 409 на «дубликаты» — создаём без проверки
         return filmStorage.create(film);
     }
 
     public Film update(Film film) {
         log.debug("Обновление фильма: {}", film);
-
         if (film.getId() == null) {
             log.warn("Попытка обновить фильм без id (null)");
             throw new NotFoundException("Фильм с id=null не найден");
@@ -62,10 +57,8 @@ public class FilmService {
             log.warn("Фильм с id={} не найден", film.getId());
             throw new NotFoundException("Фильм с id=" + film.getId() + " не найден");
         }
-
         normalizeMpa(film);
         normalizeGenres(film);
-
         return filmStorage.update(film);
     }
 
@@ -84,7 +77,10 @@ public class FilmService {
     public List<Film> getAll() {
         log.debug("Запрос на получение всех фильмов");
         List<Film> list = filmStorage.getAll();
-        list.forEach(f -> { normalizeMpa(f); normalizeGenres(f); });
+        list.forEach(f -> {
+            normalizeMpa(f);
+            normalizeGenres(f);
+        });
         return list;
     }
 
@@ -122,14 +118,19 @@ public class FilmService {
     public List<Film> getPopular(int count) {
         log.info("Получение списка популярных фильмов (топ-{})", count);
         return filmStorage.getAll().stream()
-                .peek(f -> { normalizeMpa(f); normalizeGenres(f); })
+                .peek(f -> {
+                    normalizeMpa(f);
+                    normalizeGenres(f);
+                })
                 .sorted(Comparator.comparingInt((Film f) -> f.getLikes().size()).reversed())
                 .limit(count)
                 .collect(Collectors.toList());
     }
 
     private void normalizeMpa(Film film) {
-        if (film.getMpa() == null || film.getMpa().getId() == null) return;
+        if (film.getMpa() == null || film.getMpa().getId() == null) {
+            return;
+        }
         Integer id = film.getMpa().getId();
         String name = MPA_NAMES.get(id);
         if (name == null) {
