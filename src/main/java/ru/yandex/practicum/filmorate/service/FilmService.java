@@ -19,6 +19,23 @@ public class FilmService {
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
 
+    private static final Map<Integer, String> MPA_NAMES = Map.of(
+            1, "G",
+            2, "PG",
+            3, "PG-13",
+            4, "R",
+            5, "NC-17"
+    );
+
+    private static final Map<Integer, String> GENRE_NAMES = Map.of(
+            1, "Комедия",
+            2, "Драма",
+            3, "Мультфильм",
+            4, "Триллер",
+            5, "Документальный",
+            6, "Боевик"
+    );
+
     public FilmService(FilmStorage filmStorage, UserStorage userStorage) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
@@ -27,24 +44,19 @@ public class FilmService {
     public Film create(Film film) {
         log.debug("Создание фильма: {}", film);
 
+        normalizeMpa(film);
+        normalizeGenres(film);
+
         boolean duplicateExists = filmStorage.getAll().stream()
-                .anyMatch(f -> f.getName().equalsIgnoreCase(film.getName())
+                .anyMatch(f -> f.getName() != null
+                        && film.getName() != null
+                        && f.getName().equalsIgnoreCase(film.getName())
                         && Objects.equals(f.getReleaseDate(), film.getReleaseDate()));
+
         if (duplicateExists) {
-            log.warn("Попытка создать дубликат фильма: {}", film);
+            log.warn("Попытка создать дубликат фильма: {} (name + releaseDate)", film);
             throw new ConflictException("Фильм с таким названием и датой релиза уже существует");
         }
-
-        if (film.getMpa() != null && film.getMpa().getId() != null) {
-            Mpa mpa = film.getMpa();
-            int id = mpa.getId();
-            if (id < 1 || id > 5) {
-                throw new NotFoundException("MPA с id=" + id + " не найден");
-            }
-            film.setMpa(new Mpa(id, mpa.getName()));
-        }
-
-        film.setGenres(normalizeGenres(film.getGenres()));
 
         return filmStorage.create(film);
     }
@@ -61,16 +73,8 @@ public class FilmService {
             throw new NotFoundException("Фильм с id=" + film.getId() + " не найден");
         }
 
-        if (film.getMpa() != null && film.getMpa().getId() != null) {
-            Mpa mpa = film.getMpa();
-            int id = mpa.getId();
-            if (id < 1 || id > 5) {
-                throw new NotFoundException("MPA с id=" + id + " не найден");
-            }
-            film.setMpa(new Mpa(id, mpa.getName()));
-        }
-
-        film.setGenres(normalizeGenres(film.getGenres()));
+        normalizeMpa(film);
+        normalizeGenres(film);
 
         return filmStorage.update(film);
     }
@@ -82,14 +86,15 @@ public class FilmService {
                     log.warn("Фильм с id={} не найден", id);
                     return new NotFoundException("Фильм с id=" + id + " не найден");
                 });
-        f.setGenres(normalizeGenres(f.getGenres()));
+        normalizeMpa(f);
+        normalizeGenres(f);
         return f;
     }
 
     public List<Film> getAll() {
         log.debug("Запрос на получение всех фильмов");
         List<Film> list = filmStorage.getAll();
-        list.forEach(f -> f.setGenres(normalizeGenres(f.getGenres())));
+        list.forEach(f -> { normalizeMpa(f); normalizeGenres(f); });
         return list;
     }
 
@@ -127,26 +132,42 @@ public class FilmService {
     public List<Film> getPopular(int count) {
         log.info("Получение списка популярных фильмов (топ-{})", count);
         return filmStorage.getAll().stream()
-                .peek(f -> f.setGenres(normalizeGenres(f.getGenres())))
+                .peek(f -> { normalizeMpa(f); normalizeGenres(f); })
                 .sorted(Comparator.comparingInt((Film f) -> f.getLikes().size()).reversed())
                 .limit(count)
                 .collect(Collectors.toList());
     }
 
-    private Set<Genre> normalizeGenres(Set<Genre> input) {
-        if (input == null || input.isEmpty()) return new LinkedHashSet<>();
-        return input.stream()
+    private void normalizeMpa(Film film) {
+        if (film.getMpa() == null || film.getMpa().getId() == null) return;
+        Integer id = film.getMpa().getId();
+        String name = MPA_NAMES.get(id);
+        if (name == null) {
+            throw new NotFoundException("MPA с id=" + id + " не найден");
+        }
+        film.setMpa(new Mpa(id, name));
+    }
+
+    private void normalizeGenres(Film film) {
+        Set<Genre> input = film.getGenres();
+        if (input == null || input.isEmpty()) {
+            film.setGenres(new LinkedHashSet<>());
+            return;
+        }
+        LinkedHashSet<Genre> normalized = input.stream()
                 .filter(Objects::nonNull)
                 .map(Genre::getId)
                 .filter(Objects::nonNull)
-                .peek(id -> {
-                    if (id < 1 || id > 6) {
-                        throw new NotFoundException("Жанр с id=" + id + " не найден");
-                    }
-                })
                 .distinct()
                 .sorted()
-                .map(id -> new Genre(id, null))
+                .map(id -> {
+                    String name = GENRE_NAMES.get(id);
+                    if (name == null) {
+                        throw new NotFoundException("Жанр с id=" + id + " не найден");
+                    }
+                    return new Genre(id, name);
+                })
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+        film.setGenres(normalized);
     }
 }

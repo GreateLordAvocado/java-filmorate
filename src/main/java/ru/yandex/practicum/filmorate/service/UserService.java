@@ -60,33 +60,25 @@ public class UserService {
     }
 
     public void addFriend(Long id, Long friendId) {
-        log.info("Добавление в друзья: пользователь id={} и пользователь id={}", id, friendId);
+        log.info("Добавление в друзья (одностороннее): {} -> {}", id, friendId);
         User user = getById(id);
-        User friend = getById(friendId);
+        getById(friendId);
 
         user.addFriend(friendId);
-        friend.addFriend(id);
-
         userStorage.update(user);
-        userStorage.update(friend);
 
-        log.debug("Теперь у пользователя id={} всего друзей: {}", id, user.getFriends().size());
-        log.debug("Теперь у пользователя id={} всего друзей: {}", friendId, friend.getFriends().size());
+        log.debug("У пользователя id={} теперь друзей: {}", id, user.getFriends().size());
     }
 
     public void removeFriend(Long id, Long friendId) {
-        log.info("Удаление из друзей: пользователь id={} и пользователь id={}", id, friendId);
+        log.info("Удаление из друзей (одностороннее): {} -X-> {}", id, friendId);
         User user = getById(id);
-        User friend = getById(friendId);
+        getById(friendId); // валидация наличия пользователя
 
         user.removeFriend(friendId);
-        friend.removeFriend(id);
-
         userStorage.update(user);
-        userStorage.update(friend);
 
-        log.debug("После удаления у пользователя id={} всего друзей: {}", id, user.getFriends().size());
-        log.debug("После удаления у пользователя id={} всего друзей: {}", friendId, friend.getFriends().size());
+        log.debug("После удаления у пользователя id={} друзей: {}", id, user.getFriends().size());
     }
 
     public List<User> getFriends(Long id) {
@@ -105,7 +97,7 @@ public class UserService {
     }
 
     public List<User> getCommonFriends(Long id, Long otherId) {
-        log.info("Запрос на общих друзей: пользователь id={} и пользователь id={}", id, otherId);
+        log.info("Запрос на общих друзей: {} и {}", id, otherId);
         Set<Long> friendsOfUser = getById(id).getFriends();
         Set<Long> friendsOfOther = getById(otherId).getFriends();
 
