@@ -2,7 +2,6 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import ru.yandex.practicum.filmorate.exceptions.ConflictException;
 import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
@@ -44,20 +43,11 @@ public class FilmService {
     public Film create(Film film) {
         log.debug("Создание фильма: {}", film);
 
+        // Приводим MPA/жанры к каноничному виду, валидируем id
         normalizeMpa(film);
         normalizeGenres(film);
 
-        boolean duplicateExists = filmStorage.getAll().stream()
-                .anyMatch(f -> f.getName() != null
-                        && film.getName() != null
-                        && f.getName().equalsIgnoreCase(film.getName())
-                        && Objects.equals(f.getReleaseDate(), film.getReleaseDate()));
-
-        if (duplicateExists) {
-            log.warn("Попытка создать дубликат фильма: {} (name + releaseDate)", film);
-            throw new ConflictException("Фильм с таким названием и датой релиза уже существует");
-        }
-
+        // По ТЗ GitHub не ожидает 409 на «дубликаты» — создаём без проверки
         return filmStorage.create(film);
     }
 
