@@ -70,7 +70,7 @@ public class FriendshipDbStorage implements FriendshipStorage {
                 "SELECT f1.friend_id " +
                         "FROM friendships f1 " +
                         "JOIN friendships f2 ON f1.friend_id = f2.friend_id " +
-                        "WHERE f1.user_id=? AND f2.user_id=? AND f1.is_confirmed=TRUE AND f2.is_confirmed=TRUE " +
+                        "WHERE f1.user_id=? AND f2.user_id=? " +
                         "ORDER BY f1.friend_id",
                 (rs, rn) -> rs.getLong(1),
                 userId, otherUserId

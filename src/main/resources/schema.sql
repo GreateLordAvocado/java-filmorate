@@ -38,8 +38,7 @@ CREATE TABLE IF NOT EXISTS films (
   release_date  DATE         NOT NULL CHECK (release_date >= DATE '1895-12-28'),
   duration      INTEGER      NOT NULL CHECK (duration > 0),
   mpa_id        INTEGER      NOT NULL,
-  CONSTRAINT fk_films_mpa FOREIGN KEY (mpa_id) REFERENCES mpa_ratings(id),
-  CONSTRAINT uq_film_name_release UNIQUE (name, release_date)
+  CONSTRAINT fk_films_mpa FOREIGN KEY (mpa_id) REFERENCES mpa_ratings(id)
 );
 
 -- GENRES
