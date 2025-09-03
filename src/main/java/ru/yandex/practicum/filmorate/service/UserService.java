@@ -1,23 +1,28 @@
 package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exceptions.NotFoundException;
+import ru.yandex.practicum.filmorate.exceptions.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.storage.friendship.FriendshipStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 public class UserService {
-    private final UserStorage userStorage;
 
-    public UserService(UserStorage userStorage) {
+    private final UserStorage userStorage;
+    private final FriendshipStorage friendshipStorage;
+
+    public UserService(@Qualifier("userDbStorage") UserStorage userStorage,
+                       @Qualifier("friendshipDbStorage") FriendshipStorage friendshipStorage) {
         this.userStorage = userStorage;
+        this.friendshipStorage = friendshipStorage;
     }
 
     public User create(User user) {
@@ -50,64 +55,60 @@ public class UserService {
 
     public void delete(Long id) {
         log.info("Удаление пользователя id={}", id);
-        userStorage.getById(id)
-                .orElseThrow(() -> {
-                    log.warn("Попытка удалить несуществующего пользователя id={}", id);
-                    return new NotFoundException("Пользователь с id=" + id + " не найден");
-                });
+        getById(id);
         userStorage.delete(id);
-        log.info("Пользователь id={} успешно удален", id);
+        log.info("Пользователь id={} успешно удалён", id);
     }
 
     public void addFriend(Long id, Long friendId) {
         log.info("Добавление в друзья (одностороннее): {} -> {}", id, friendId);
-        User user = getById(id);
+        if (Objects.equals(id, friendId)) {
+            log.warn("Попытка добавить себя в друзья: userId={}", id);
+            throw new ValidationException("Нельзя добавить самого себя в друзья");
+        }
+        getById(id);
         getById(friendId);
-
-        user.addFriend(friendId);
-        userStorage.update(user);
-
-        log.debug("У пользователя id={} теперь друзей: {}", id, user.getFriends().size());
+        friendshipStorage.request(id, friendId);
+        log.debug("Заявка в друзья создана: {} -> {}", id, friendId);
     }
 
     public void removeFriend(Long id, Long friendId) {
         log.info("Удаление из друзей (одностороннее): {} -X-> {}", id, friendId);
-        User user = getById(id);
-        getById(friendId); // валидация наличия пользователя
-
-        user.removeFriend(friendId);
-        userStorage.update(user);
-
-        log.debug("После удаления у пользователя id={} друзей: {}", id, user.getFriends().size());
+        if (Objects.equals(id, friendId)) {
+            log.warn("Попытка удалить из друзей самого себя: userId={}", id);
+            throw new ValidationException("Нельзя удалить из друзей самого себя");
+        }
+        getById(id);
+        getById(friendId);
+        friendshipStorage.remove(id, friendId);
+        log.debug("Дружба удалена: {} -X-> {}", id, friendId);
     }
 
     public List<User> getFriends(Long id) {
         log.info("Запрос на получение друзей пользователя id={}", id);
-        User user = getById(id);
-
-        Map<Long, User> userMap = userStorage.getAll().stream()
-                .collect(Collectors.toMap(User::getId, u -> u));
-
-        List<User> friends = user.getFriends().stream()
-                .map(userMap::get)
-                .collect(Collectors.toList());
-
-        log.debug("Найдено друзей у пользователя id={}: {}", id, friends.size());
-        return friends;
+        getById(id);
+        Set<Long> friendIds = friendshipStorage.getFriends(id, false);
+        return friendIds.stream()
+                .map(userStorage::getById)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .toList();
     }
 
     public List<User> getCommonFriends(Long id, Long otherId) {
         log.info("Запрос на общих друзей: {} и {}", id, otherId);
-        Set<Long> friendsOfUser = getById(id).getFriends();
-        Set<Long> friendsOfOther = getById(otherId).getFriends();
+        getById(id);
+        getById(otherId);
 
-        Map<Long, User> userMap = userStorage.getAll().stream()
+        Set<Long> commonIds = friendshipStorage.getCommonFriends(id, otherId);
+
+        Map<Long, User> byId = userStorage.getAll().stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 
-        List<User> common = friendsOfUser.stream()
-                .filter(friendsOfOther::contains)
-                .map(userMap::get)
-                .collect(Collectors.toList());
+        List<User> common = commonIds.stream()
+                .map(byId::get)
+                .filter(Objects::nonNull)
+                .toList();
 
         log.debug("Общие друзья найдены: {}", common.size());
         return common;

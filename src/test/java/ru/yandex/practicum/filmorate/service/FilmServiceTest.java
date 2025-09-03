@@ -1,6 +1,5 @@
 package ru.yandex.practicum.filmorate.service;
 
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import ru.yandex.practicum.filmorate.model.Film;
@@ -18,13 +17,17 @@ class FilmServiceTest {
 
     private FilmStorage filmStorage;
     private UserStorage userStorage;
+    private GenreService genreService;
+    private MpaService mpaService;
     private FilmService filmService;
 
     @BeforeEach
     void setUp() {
         filmStorage = mock(FilmStorage.class);
         userStorage = mock(UserStorage.class);
-        filmService = new FilmService(filmStorage, userStorage);
+        genreService = mock(GenreService.class);
+        mpaService = mock(MpaService.class);
+        filmService = new FilmService(filmStorage, userStorage, genreService, mpaService);
     }
 
     private Film createFilm(Long id, String name) {

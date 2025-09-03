@@ -1,12 +1,14 @@
-INSERT INTO mpa_ratings (id, code, name) VALUES
-  (1,'G','General Audiences'),
-  (2,'PG','Parental Guidance Suggested'),
-  (3,'PG-13','Parents Strongly Cautioned'),
-  (4,'R','Restricted'),
-  (5,'NC-17','Adults Only')
-ON CONFLICT (id) DO NOTHING;
+MERGE INTO mpa_ratings (id, code, name) KEY(id) VALUES
+  (1,'G','Для всех'),
+  (2,'PG','Рекомендуется с родителями'),
+  (3,'PG-13','До 13 лет нежелательно'),
+  (4,'R','До 17 лет с взрослым'),
+  (5,'NC-17','Запрещено до 18');
 
-INSERT INTO genres (id, name) VALUES
-  (1,'Комедия'), (2,'Драма'), (3,'Мультфильм'),
-  (4,'Триллер'), (5,'Документальный'), (6,'Боевик')
-ON CONFLICT (id) DO NOTHING;
+MERGE INTO genres (id, name) KEY(id) VALUES
+  (1,'Комедия'),
+  (2,'Драма'),
+  (3,'Мультфильм'),
+  (4,'Триллер'),
+  (5,'Документальный'),
+  (6,'Боевик');
