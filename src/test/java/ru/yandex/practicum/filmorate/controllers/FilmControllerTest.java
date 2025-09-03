@@ -16,6 +16,7 @@ import ru.yandex.practicum.filmorate.model.User;
 
 import java.time.LocalDate;
 
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -155,21 +156,29 @@ class FilmControllerTest {
     }
 
     @Test
-    @DisplayName("Дубликат name+release_date возвращает 409 CONFLICT")
-    void shouldReturnConflictOnDuplicateNameAndReleaseDate() throws Exception {
+    @DisplayName("Дубликат name+release_date допускается (201 Created)")
+    void shouldAllowDuplicateNameAndReleaseDate() throws Exception {
         Film film1 = createFilm("Film 1", "Description", LocalDate.of(2000, 1, 1), 120);
         Film film2 = createFilm("Film 1", "Another description", LocalDate.of(2000, 1, 1), 130);
 
-        mockMvc.perform(post("/films")
+        String r1 = mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(film1)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists());
+                .andExpect(jsonPath("$.id").exists())
+                .andReturn().getResponse().getContentAsString();
 
-        mockMvc.perform(post("/films")
+        String r2 = mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(film2)))
-                .andExpect(status().isConflict());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        Film created1 = objectMapper.readValue(r1, Film.class);
+        Film created2 = objectMapper.readValue(r2, Film.class);
+
+        assertNotEquals(created1.getId(), created2.getId(), "Оба фильма должны сохраниться как разные записи");
     }
 
     @Test
