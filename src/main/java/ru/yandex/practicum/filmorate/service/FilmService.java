@@ -45,13 +45,10 @@ public class FilmService {
     public Film update(Film film) {
         log.debug("Обновление фильма: {}", film);
         if (film.getId() == null) {
-            log.warn("Попытка обновить фильм без id (null)");
             throw new NotFoundException("Фильм с id=null не найден");
         }
-        filmStorage.getById(film.getId()).orElseThrow(() -> {
-            log.warn("Фильм с id={} не найден", film.getId());
-            return new NotFoundException("Фильм с id=" + film.getId() + " не найден");
-        });
+        filmStorage.getById(film.getId())
+                .orElseThrow(() -> new NotFoundException("Фильм с id=" + film.getId() + " не найден"));
 
         canonicalizeMpaAndGenres(film);
         return filmStorage.update(film);
@@ -59,10 +56,8 @@ public class FilmService {
 
     public Film getById(Long id) {
         log.debug("Поиск фильма по id={}", id);
-        return filmStorage.getById(id).orElseThrow(() -> {
-            log.warn("Фильм с id={} не найден", id);
-            return new NotFoundException("Фильм с id=" + id + " не найден");
-        });
+        return filmStorage.getById(id)
+                .orElseThrow(() -> new NotFoundException("Фильм с id=" + id + " не найден"));
     }
 
     public List<Film> getAll() {
@@ -78,10 +73,8 @@ public class FilmService {
     public boolean addLike(Long filmId, Long userId) {
         log.info("Добавление лайка фильму id={} от пользователя id={}", filmId, userId);
         Film film = getById(filmId);
-        userStorage.getById(userId).orElseThrow(() -> {
-            log.warn("Пользователь с id={} не найден", userId);
-            return new NotFoundException("Пользователь с id=" + userId + " не найден");
-        });
+        userStorage.getById(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
 
         boolean added = film.getLikes().add(userId);
         filmStorage.update(film);
@@ -93,10 +86,8 @@ public class FilmService {
     public void removeLike(Long filmId, Long userId) {
         log.info("Удаление лайка у фильма id={} от пользователя id={}", filmId, userId);
         Film film = getById(filmId);
-        userStorage.getById(userId).orElseThrow(() -> {
-            log.warn("Пользователь с id={} не найден", userId);
-            return new NotFoundException("Пользователь с id=" + userId + " не найден");
-        });
+        userStorage.getById(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
 
         film.getLikes().remove(userId);
         filmStorage.update(film);

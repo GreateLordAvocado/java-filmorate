@@ -90,9 +90,10 @@ class UserServiceTest {
 
         when(userStorage.getById(1L)).thenReturn(Optional.of(user1));
         when(userStorage.getById(2L)).thenReturn(Optional.of(user2));
-        when(userStorage.getAll()).thenReturn(List.of(user1, user2, user3));
+        when(userStorage.getById(3L)).thenReturn(Optional.of(user3));
+
         when(friendshipStorage.getCommonFriends(1L, 2L))
-                .thenReturn(new LinkedHashSet<>(Set.of(3L)));
+                .thenReturn(new LinkedHashSet<>(List.of(3L)));
 
         var common = userService.getCommonFriends(1L, 2L);
 

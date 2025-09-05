@@ -9,8 +9,10 @@ import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.friendship.FriendshipStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -33,19 +35,13 @@ public class UserService {
     public User update(User user) {
         log.debug("Обновление пользователя: {}", user);
         return userStorage.update(user)
-                .orElseThrow(() -> {
-                    log.warn("Не удалось обновить пользователя id={}", user.getId());
-                    return new NotFoundException("Пользователь с id=" + user.getId() + " не найден");
-                });
+                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + user.getId() + " не найден"));
     }
 
     public User getById(Long id) {
         log.debug("Поиск пользователя по id={}", id);
         return userStorage.getById(id)
-                .orElseThrow(() -> {
-                    log.warn("Пользователь с id={} не найден", id);
-                    return new NotFoundException("Пользователь с id=" + id + " не найден");
-                });
+                .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден"));
     }
 
     public List<User> getAll() {
@@ -63,7 +59,6 @@ public class UserService {
     public void addFriend(Long id, Long friendId) {
         log.info("Добавление в друзья (одностороннее): {} -> {}", id, friendId);
         if (Objects.equals(id, friendId)) {
-            log.warn("Попытка добавить себя в друзья: userId={}", id);
             throw new ValidationException("Нельзя добавить самого себя в друзья");
         }
         getById(id);
@@ -75,7 +70,6 @@ public class UserService {
     public void removeFriend(Long id, Long friendId) {
         log.info("Удаление из друзей (одностороннее): {} -X-> {}", id, friendId);
         if (Objects.equals(id, friendId)) {
-            log.warn("Попытка удалить из друзей самого себя: userId={}", id);
             throw new ValidationException("Нельзя удалить из друзей самого себя");
         }
         getById(id);
@@ -90,8 +84,7 @@ public class UserService {
         Set<Long> friendIds = friendshipStorage.getFriends(id, false);
         return friendIds.stream()
                 .map(userStorage::getById)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .flatMap(Optional::stream)
                 .toList();
     }
 
@@ -102,12 +95,9 @@ public class UserService {
 
         Set<Long> commonIds = friendshipStorage.getCommonFriends(id, otherId);
 
-        Map<Long, User> byId = userStorage.getAll().stream()
-                .collect(Collectors.toMap(User::getId, u -> u));
-
         List<User> common = commonIds.stream()
-                .map(byId::get)
-                .filter(Objects::nonNull)
+                .map(userStorage::getById)
+                .flatMap(Optional::stream)
                 .toList();
 
         log.debug("Общие друзья найдены: {}", common.size());
