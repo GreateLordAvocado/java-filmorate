@@ -21,9 +21,9 @@ public class UserDbStorage implements UserStorage {
     @Override
     public User create(User user) {
         final String sql = """
-                INSERT INTO users (email, login, name, birthday)
-                VALUES (?, ?, ?, ?)
-                """;
+            INSERT INTO users (email, login, name, birthday)
+            VALUES (?, ?, ?, ?)
+            """;
         KeyHolder kh = new GeneratedKeyHolder();
         jdbc.update(con -> {
             PreparedStatement ps = con.prepareStatement(sql, new String[]{"id"});
@@ -43,10 +43,10 @@ public class UserDbStorage implements UserStorage {
     @Override
     public Optional<User> update(User user) {
         final String sql = """
-                UPDATE users
-                   SET email = ?, login = ?, name = ?, birthday = ?
-                 WHERE id = ?
-                """;
+            UPDATE users
+               SET email = ?, login = ?, name = ?, birthday = ?
+             WHERE id = ?
+            """;
         int updated = jdbc.update(sql,
                 user.getEmail(),
                 user.getLogin(),
@@ -66,10 +66,10 @@ public class UserDbStorage implements UserStorage {
     @Override
     public Optional<User> getById(Long id) {
         final String sql = """
-                SELECT id, email, login, name, birthday
-                  FROM users
-                 WHERE id = ?
-                """;
+            SELECT id, email, login, name, birthday
+              FROM users
+             WHERE id = ?
+            """;
         List<User> list = jdbc.query(sql, (rs, rowNum) -> {
             User u = new User();
             u.setId(rs.getLong("id"));
@@ -80,7 +80,9 @@ public class UserDbStorage implements UserStorage {
             return u;
         }, id);
 
-        if (list.isEmpty()) return Optional.empty();
+        if (list.isEmpty()) {
+            return Optional.empty();
+        }
 
         User u = list.get(0);
         u.getFriends().addAll(loadFriendsIds(u.getId()));
@@ -90,9 +92,9 @@ public class UserDbStorage implements UserStorage {
     @Override
     public List<User> getAll() {
         final String sql = """
-                SELECT id, email, login, name, birthday
-                  FROM users
-                """;
+            SELECT id, email, login, name, birthday
+              FROM users
+            """;
         List<User> users = jdbc.query(sql, (rs, rowNum) -> {
             User u = new User();
             u.setId(rs.getLong("id"));
@@ -136,7 +138,9 @@ public class UserDbStorage implements UserStorage {
 
     private void upsertFriends(Long userId, Set<Long> newFriends) {
         jdbc.update("DELETE FROM friendships WHERE user_id = ?", userId);
-        if (newFriends == null || newFriends.isEmpty()) return;
+        if (newFriends == null || newFriends.isEmpty()) {
+            return;
+        }
 
         final String insert = "INSERT INTO friendships (user_id, friend_id, is_confirmed) VALUES (?, ?, FALSE)";
         List<Object[]> batch = newFriends.stream()

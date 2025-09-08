@@ -87,7 +87,9 @@ public class FilmDbStorage implements FilmStorage {
             return f;
         }, id);
 
-        if (list.isEmpty()) return Optional.empty();
+        if (list.isEmpty()) {
+            return Optional.empty();
+        }
 
         Film f = list.get(0);
         f.setGenres(loadGenresForFilm(f.getId()));
@@ -161,7 +163,9 @@ public class FilmDbStorage implements FilmStorage {
 
     private void upsertGenres(Long filmId, Set<Genre> genres) {
         jdbc.update("DELETE FROM film_genres WHERE film_id = ?", filmId);
-        if (genres == null || genres.isEmpty()) return;
+        if (genres == null || genres.isEmpty()) {
+            return;
+        }
         final String insert = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
 
         List<Object[]> batch = genres.stream()
@@ -195,9 +199,13 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     private void upsertLikes(Long filmId, Set<Long> likes) {
-        if (likes == null) return;
+        if (likes == null) {
+            return;
+        }
         jdbc.update("DELETE FROM likes WHERE film_id = ?", filmId);
-        if (likes.isEmpty()) return;
+        if (likes.isEmpty()) {
+            return;
+        }
 
         final String insert = "INSERT INTO likes (film_id, user_id) VALUES (?, ?)";
         List<Object[]> batch = likes.stream()

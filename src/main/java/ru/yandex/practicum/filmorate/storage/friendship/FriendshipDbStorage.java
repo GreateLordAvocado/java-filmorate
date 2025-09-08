@@ -85,7 +85,9 @@ public class FriendshipDbStorage implements FriendshipStorage {
                 (rs, rn) -> rs.getBoolean(1),
                 userId, friendId
         );
-        if (list.isEmpty()) return Optional.empty();
+        if (list.isEmpty()) {
+            return Optional.empty();
+        }
         return Optional.of(list.get(0) ? FriendshipStatus.CONFIRMED : FriendshipStatus.PENDING);
     }
 }
