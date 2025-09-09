@@ -8,17 +8,27 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Mpa;
 import ru.yandex.practicum.filmorate.model.User;
 
 import java.time.LocalDate;
 
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:filmorate;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+        "spring.datasource.driverClassName=org.h2.Driver",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=password",
+        "spring.sql.init.mode=always"
+})
 @AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class FilmControllerTest {
 
     @Autowired
@@ -45,6 +55,7 @@ class FilmControllerTest {
         film.setDescription(description);
         film.setReleaseDate(releaseDate);
         film.setDuration(duration);
+        film.setMpa(new Mpa(1, "G"));
         return film;
     }
 
@@ -145,22 +156,29 @@ class FilmControllerTest {
     }
 
     @Test
-    @DisplayName("Должен вернуть 201 при создании нового фильма и 409 при дубликате")
-    void shouldReturnCreatedOrConflictForDuplicateFilm() throws Exception {
+    @DisplayName("Дубликат name+release_date допускается (201 Created)")
+    void shouldAllowDuplicateNameAndReleaseDate() throws Exception {
         Film film1 = createFilm("Film 1", "Description", LocalDate.of(2000, 1, 1), 120);
         Film film2 = createFilm("Film 1", "Another description", LocalDate.of(2000, 1, 1), 130);
 
-        // Добавление первого фильма → 201 Created
-        mockMvc.perform(post("/films")
+        String r1 = mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(film1)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andReturn().getResponse().getContentAsString();
 
-        // Добавление второго фильма (дубликата) → 409 Conflict
-        mockMvc.perform(post("/films")
+        String r2 = mockMvc.perform(post("/films")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(film2)))
-                .andExpect(status().isConflict());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").exists())
+                .andReturn().getResponse().getContentAsString();
+
+        Film created1 = objectMapper.readValue(r1, Film.class);
+        Film created2 = objectMapper.readValue(r2, Film.class);
+
+        assertNotEquals(created1.getId(), created2.getId(), "Оба фильма должны сохраниться как разные записи");
     }
 
     @Test

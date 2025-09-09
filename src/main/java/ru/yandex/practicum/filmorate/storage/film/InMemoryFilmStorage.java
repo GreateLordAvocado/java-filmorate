@@ -38,7 +38,6 @@ public class InMemoryFilmStorage implements FilmStorage {
         films.remove(id);
     }
 
-    // Работа с лайками через методы Film
     public void addLike(Long filmId, Long userId) {
         films.get(filmId).addLike(userId);
     }

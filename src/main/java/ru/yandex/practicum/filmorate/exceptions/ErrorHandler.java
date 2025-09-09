@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.exceptions;
 
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -23,8 +24,15 @@ public class ErrorHandler {
 
     @ExceptionHandler(ValidationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleValidationException(ValidationException e) {
-        log.error("Ошибка валидации: {}", e.getMessage(), e);
+    public ErrorResponse handleJakartaValidation(ValidationException e) {
+        log.error("Ошибка валидации (jakarta): {}", e.getMessage(), e);
+        return new ErrorResponse(e.getMessage());
+    }
+
+    @ExceptionHandler(ru.yandex.practicum.filmorate.exceptions.ValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleAppValidation(ru.yandex.practicum.filmorate.exceptions.ValidationException e) {
+        log.error("Ошибка валидации (app): {}", e.getMessage(), e);
         return new ErrorResponse(e.getMessage());
     }
 
@@ -51,6 +59,14 @@ public class ErrorHandler {
     public ErrorResponse handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
         log.error("Ошибка: пустое или некорректное тело запроса", e);
         return new ErrorResponse("Тело запроса не может быть пустым или некорректным");
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleDataIntegrity(DataIntegrityViolationException e) {
+        String msg = e.getMostSpecificCause() != null ? e.getMostSpecificCause().getMessage() : e.getMessage();
+        log.error("Ошибка 409 Conflict (целостность данных): {}", msg, e);
+        return new ErrorResponse("Конфликт данных: " + msg);
     }
 
     @ExceptionHandler(ConflictException.class)

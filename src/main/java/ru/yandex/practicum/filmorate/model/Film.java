@@ -2,18 +2,16 @@ package ru.yandex.practicum.filmorate.model;
 
 import jakarta.validation.constraints.*;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import ru.yandex.practicum.filmorate.validations.FilmReleaseDateConstraint;
 
 import java.time.LocalDate;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
-/**
- * Film.
- */
 @Data
-@EqualsAndHashCode(of = {"id"})
+@NoArgsConstructor
 public class Film {
 
     private Long id;
@@ -34,10 +32,10 @@ public class Film {
 
     private final Set<Long> likes = new HashSet<>();
 
-    public Film() {
-    }
+    private Mpa mpa;
 
-    // Методы для работы с лайками
+    private Set<Genre> genres = new HashSet<>();
+
     public void addLike(Long userId) {
         likes.add(userId);
     }
@@ -48,5 +46,25 @@ public class Film {
 
     public int getLikesCount() {
         return likes.size();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Film)) {
+            return false;
+        }
+        Film other = (Film) o;
+        if (this.id != null && other.id != null) {
+            return Objects.equals(this.id, other.id);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return (id != null) ? id.hashCode() : System.identityHashCode(this);
     }
 }

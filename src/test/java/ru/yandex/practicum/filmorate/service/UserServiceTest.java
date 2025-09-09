@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.storage.friendship.FriendshipStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
@@ -14,12 +15,14 @@ import static org.mockito.Mockito.*;
 class UserServiceTest {
 
     private UserStorage userStorage;
+    private FriendshipStorage friendshipStorage;
     private UserService userService;
 
     @BeforeEach
     void setUp() {
         userStorage = mock(UserStorage.class);
-        userService = new UserService(userStorage);
+        friendshipStorage = mock(FriendshipStorage.class);
+        userService = new UserService(userStorage, friendshipStorage);
     }
 
     private User createUser(Long id, String login) {
@@ -41,14 +44,13 @@ class UserServiceTest {
 
         userService.addFriend(1L, 2L);
 
-        assertTrue(user1.getFriends().contains(2L));
+        verify(friendshipStorage, times(1)).request(1L, 2L);
+        verifyNoMoreInteractions(friendshipStorage);
     }
 
     @Test
     void shouldRemoveFriend() {
         User user1 = createUser(1L, "user1");
-        user1.getFriends().add(2L);
-
         User user2 = createUser(2L, "user2");
 
         when(userStorage.getById(1L)).thenReturn(Optional.of(user1));
@@ -56,7 +58,8 @@ class UserServiceTest {
 
         userService.removeFriend(1L, 2L);
 
-        assertFalse(user1.getFriends().contains(2L));
+        verify(friendshipStorage, times(1)).remove(1L, 2L);
+        verifyNoMoreInteractions(friendshipStorage);
     }
 
     @Test
@@ -65,12 +68,14 @@ class UserServiceTest {
         User user2 = createUser(2L, "user2");
         User user3 = createUser(3L, "user3");
 
-        user1.getFriends().addAll(Set.of(2L, 3L));
-
         when(userStorage.getById(1L)).thenReturn(Optional.of(user1));
-        when(userStorage.getAll()).thenReturn(List.of(user1, user2, user3)); // 🔥 добавили
+        when(userStorage.getById(2L)).thenReturn(Optional.of(user2));
+        when(userStorage.getById(3L)).thenReturn(Optional.of(user3));
 
-        List<User> friends = userService.getFriends(1L);
+        when(friendshipStorage.getFriends(1L, false))
+                .thenReturn(new LinkedHashSet<>(Set.of(2L, 3L)));
+
+        var friends = userService.getFriends(1L);
 
         assertEquals(2, friends.size());
         assertTrue(friends.contains(user2));
@@ -83,16 +88,14 @@ class UserServiceTest {
         User user2 = createUser(2L, "user2");
         User user3 = createUser(3L, "user3");
 
-        user1.getFriends().add(3L);
-        user2.getFriends().add(3L);
-
         when(userStorage.getById(1L)).thenReturn(Optional.of(user1));
         when(userStorage.getById(2L)).thenReturn(Optional.of(user2));
         when(userStorage.getById(3L)).thenReturn(Optional.of(user3));
 
-        when(userStorage.getAll()).thenReturn(List.of(user1, user2, user3));
+        when(friendshipStorage.getCommonFriends(1L, 2L))
+                .thenReturn(new LinkedHashSet<>(List.of(3L)));
 
-        List<User> common = userService.getCommonFriends(1L, 2L);
+        var common = userService.getCommonFriends(1L, 2L);
 
         assertEquals(1, common.size());
         assertEquals(user3, common.get(0));

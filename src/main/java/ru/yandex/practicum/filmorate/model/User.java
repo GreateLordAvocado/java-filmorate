@@ -34,14 +34,14 @@ public class User {
         return (name == null || name.isBlank()) ? login : name;
     }
 
+    public User() {
+    }
+
     public void addFriend(Long friendId) {
         friends.add(friendId);
     }
 
     public void removeFriend(Long friendId) {
         friends.remove(friendId);
-    }
-
-    public User() {
     }
 }

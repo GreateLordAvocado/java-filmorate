@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import ru.yandex.practicum.filmorate.model.User;
 
@@ -16,15 +17,19 @@ import java.time.LocalDate;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:filmorate-${random.uuid};MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+        "spring.datasource.driverClassName=org.h2.Driver",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=password",
+        "spring.sql.init.mode=always"
+})
 @AutoConfigureMockMvc
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class UserControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ObjectMapper objectMapper;
 
     private User user;
 
@@ -121,15 +126,24 @@ class UserControllerTest {
         String createdUserJson = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
                 .andReturn().getResponse().getContentAsString();
+
         User createdUser = objectMapper.readValue(createdUserJson, User.class);
 
         createdUser.setName("Updated Name");
+        createdUser.setEmail("updated_" + createdUser.getId() + "@example.com");
+        createdUser.setLogin("updatedLogin" + createdUser.getId());
+        createdUser.setBirthday(LocalDate.of(1990, 1, 1));
+
         mockMvc.perform(put("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createdUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Updated Name"));
+                .andExpect(jsonPath("$.name").value("Updated Name"))
+                .andExpect(jsonPath("$.email").value("updated_" + createdUser.getId() + "@example.com"))
+                .andExpect(jsonPath("$.login").value("updatedLogin" + createdUser.getId()));
     }
 
     @Test
@@ -148,7 +162,10 @@ class UserControllerTest {
         String createdUserJson = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
                 .andReturn().getResponse().getContentAsString();
+
         User createdUser = objectMapper.readValue(createdUserJson, User.class);
 
         mockMvc.perform(get("/users/{id}", createdUser.getId()))
@@ -169,7 +186,10 @@ class UserControllerTest {
         String createdUserJson = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
                 .andReturn().getResponse().getContentAsString();
+
         User createdUser = objectMapper.readValue(createdUserJson, User.class);
 
         mockMvc.perform(delete("/users/{id}", createdUser.getId()))
@@ -189,6 +209,8 @@ class UserControllerTest {
         String user1Json = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
                 .andReturn().getResponse().getContentAsString();
         User user1 = objectMapper.readValue(user1Json, User.class);
 
@@ -201,6 +223,8 @@ class UserControllerTest {
         String user2Json = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(friend)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
                 .andReturn().getResponse().getContentAsString();
         User user2 = objectMapper.readValue(user2Json, User.class);
 
@@ -220,6 +244,8 @@ class UserControllerTest {
         String user1Json = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user1)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
                 .andReturn().getResponse().getContentAsString();
         User createdUser1 = objectMapper.readValue(user1Json, User.class);
 
@@ -232,6 +258,8 @@ class UserControllerTest {
         String user2Json = mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(user2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
                 .andReturn().getResponse().getContentAsString();
         User createdUser2 = objectMapper.readValue(user2Json, User.class);
 
